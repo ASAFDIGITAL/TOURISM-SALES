@@ -23,6 +23,8 @@ return [
     'language' => 'שפה',
     'receipt' => 'קבלה',
     'receipt_prefix' => 'קידומת קבלה',
+    'receipt_prefix_placeholder' => 'למשל: INV (השאר ריק למספרים בלבד)',
+    'receipt_next_number' => 'מספר קבלה הבא',
     'next_receipt_number' => 'מספר קבלה הבא',
     'subscription' => 'מינוי',
     'role' => 'תפקיד',

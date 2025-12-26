@@ -50,21 +50,21 @@ class AgentSettings extends Page
                     ->label(__('ui.name'))
                     ->required(),
                 TextInput::make('receipt_prefix')
-                    ->label('Receipt Prefix')
-                    ->placeholder('e.g. INV (leave empty for numbers only)')
+                    ->label(__('ui.receipt_prefix') ?? 'קידומת קבלה')
+                    ->placeholder(__('ui.receipt_prefix_placeholder') ?? 'למשל: INV (השאר ריק למספרים בלבד)')
                     ->nullable(),
                 TextInput::make('receipt_next_number')
-                    ->label('Next Receipt Number')
+                    ->label(__('ui.receipt_next_number') ?? 'מספר קבלה הבא')
                     ->numeric()
                     ->required(),
                 FileUpload::make('logo_path')
-                    ->label('Logo')
+                    ->label(__('ui.logo') ?? 'לוגו')
                     ->disk('public')
                     ->directory('logos')
                     ->image()
                     ->preserveFilenames(),
                 Select::make('currency')
-                    ->label('Currency')
+                    ->label(__('ui.currency'))
                     ->options([
                         'USD' => 'USD ($)',
                         'ILS' => 'ILS (₪)',
@@ -73,7 +73,7 @@ class AgentSettings extends Page
                     ])
                     ->required(),
                 Select::make('language')
-                    ->label('Language')
+                    ->label(__('ui.language'))
                     ->options([
                         'he' => 'Hebrew',
                         'ar' => 'Arabic',
@@ -88,7 +88,7 @@ class AgentSettings extends Page
     {
         return [
             Action::make('save')
-                ->label('Save Changes')
+                ->label(__('ui.save_changes'))
                 ->submit('save'),
         ];
     }
@@ -107,7 +107,7 @@ class AgentSettings extends Page
 
         Notification::make()
             ->success()
-            ->title('Settings saved successfully')
+            ->title(__('ui.settings_saved'))
             ->send();
         
         // Refresh to apply changes (especially language)
