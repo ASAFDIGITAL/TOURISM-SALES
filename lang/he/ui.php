@@ -131,4 +131,7 @@ return [
     'filter' => 'סנן',
     'reset' => 'איפוס',
     'all_trips' => 'כל הטיולים',
+    'sales_report' => 'דוח מכירות',
+    'total_collected' => 'סה"כ גבייה',
+    'total_sales_volume' => 'שווי עסקאות כולל',
 ];

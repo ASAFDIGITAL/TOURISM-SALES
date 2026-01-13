@@ -131,4 +131,7 @@ return [
     'filter' => 'Filter',
     'reset' => 'Reset',
     'all_trips' => 'All Trips',
+    'sales_report' => 'Sales Report',
+    'total_collected' => 'Total Collected',
+    'total_sales_volume' => 'Total Sales Volume',
 ];
