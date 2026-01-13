@@ -134,4 +134,6 @@ return [
     'sales_report' => 'Sales Report',
     'total_collected' => 'Total Collected',
     'total_sales_volume' => 'Total Sales Volume',
+    'transactions_list' => 'Transactions List',
+    'total_trips_count' => 'Total Trips Count',
 ];

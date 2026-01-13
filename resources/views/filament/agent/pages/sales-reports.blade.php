@@ -30,7 +30,7 @@
             $stats = $this->getStats();
         @endphp
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <x-filament::section>
                 <div class="flex items-center gap-4">
                     <div class="p-3 bg-success-100 rounded-full dark:bg-success-900/20">
@@ -60,6 +60,26 @@
                     </div>
                 </div>
             </x-filament::section>
+
+            <x-filament::section>
+                <div class="flex items-center gap-4">
+                    <div class="p-3 bg-info-100 rounded-full dark:bg-info-900/20">
+                        <x-heroicon-o-briefcase class="w-8 h-8 text-info-600 dark:text-info-400" />
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-medium text-gray-500 dark:text-gray-400">{{ __('ui.total_trips_count') ?? 'כמות טיולים' }}</h2>
+                        <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ $stats['trips_count'] }}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            {{ __('ui.trips') }}
+                        </p>
+                    </div>
+                </div>
+            </x-filament::section>
+        </div>
+
+        <div class="mt-8">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ __('ui.transactions_list') ?? 'פירוט עסקאות' }}</h3>
+            {{ $this->table }}
         </div>
     </div>
 </x-filament-panels::page>

@@ -134,4 +134,6 @@ return [
     'sales_report' => 'דוח מכירות',
     'total_collected' => 'סה"כ גבייה',
     'total_sales_volume' => 'שווי עסקאות כולל',
+    'transactions_list' => 'פירוט עסקאות',
+    'total_trips_count' => 'כמות טיולים',
 ];
