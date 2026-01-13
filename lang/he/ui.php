@@ -141,4 +141,6 @@ return [
     'trip_starts_in_days' => 'הטיול עבור :customer מתחיל בעוד :days ימים (:date).',
     'trip_starts_tomorrow' => 'הטיול עבור :customer מתחיל מחר!',
     'view_trip' => 'צפה בטיול',
+    'trip_reminder' => 'תזכורת לטיול: :destination',
+    'reminder_message' => 'תזכורת: :message',
 ];

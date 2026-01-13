@@ -141,4 +141,6 @@ return [
     'trip_starts_in_days' => 'Trip for :customer starts in :days days (:date).',
     'trip_starts_tomorrow' => 'Trip for :customer starts tomorrow!',
     'view_trip' => 'View Trip',
+    'trip_reminder' => 'Trip Reminder: :destination',
+    'reminder_message' => 'Reminder: :message',
 ];

@@ -139,4 +139,6 @@ return [
     'trip_starts_in_days' => 'الرحلة للزبون :customer ستبدأ خلال :days أيام (:date).',
     'trip_starts_tomorrow' => 'الرحلة للزبون :customer ستبدأ غداً!',
     'view_trip' => 'عرض الرحلة',
+    'trip_reminder' => 'تذكير للرحلة: :destination',
+    'reminder_message' => 'تذكير: :message',
 ];
