@@ -136,4 +136,5 @@ return [
     'total_sales_volume' => 'Total Sales Volume',
     'transactions_list' => 'Transactions List',
     'total_trips_count' => 'Total Trips Count',
+    'creation_date' => 'Creation Date',
 ];

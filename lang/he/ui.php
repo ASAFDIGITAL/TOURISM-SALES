@@ -136,4 +136,5 @@ return [
     'total_sales_volume' => 'שווי עסקאות כולל',
     'transactions_list' => 'פירוט עסקאות',
     'total_trips_count' => 'כמות טיולים',
+    'creation_date' => 'תאריך פתיחה',
 ];

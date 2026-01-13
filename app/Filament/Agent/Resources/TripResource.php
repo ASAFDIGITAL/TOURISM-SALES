@@ -143,6 +143,10 @@ class TripResource extends Resource
                 Tables\Columns\TextColumn::make('destination')
                     ->label(__('ui.destination'))
                     ->searchable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label(__('ui.creation_date'))
+                    ->dateTime('d/m/Y')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('start_date')
                     ->label(__('ui.start_date'))
                     ->date()
