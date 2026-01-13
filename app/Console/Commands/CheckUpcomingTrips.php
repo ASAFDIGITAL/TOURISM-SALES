@@ -53,7 +53,7 @@ class CheckUpcomingTrips extends Command
                     ->actions([
                         \Filament\Notifications\Actions\Action::make('view')
                             ->label('View Trip')
-                            ->url(\App\Filament\Agent\Resources\TripResource::getUrl('edit', ['record' => $trip->id]), shouldOpenInNewTab: true),
+                            ->url(\App\Filament\Agent\Resources\TripResource::getUrl('edit', ['record' => $trip->id], panel: 'agent'), shouldOpenInNewTab: true),
                     ])
                     ->sendToDatabase($agent);
                     
@@ -80,7 +80,7 @@ class CheckUpcomingTrips extends Command
                     ->actions([
                          \Filament\Notifications\Actions\Action::make('view')
                             ->label('View Trip')
-                            ->url(\App\Filament\Agent\Resources\TripResource::getUrl('edit', ['record' => $trip->id]), shouldOpenInNewTab: true),
+                            ->url(\App\Filament\Agent\Resources\TripResource::getUrl('edit', ['record' => $trip->id], panel: 'agent'), shouldOpenInNewTab: true),
                     ])
                     ->sendToDatabase($agent);
             }
