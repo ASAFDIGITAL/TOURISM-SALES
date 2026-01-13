@@ -137,4 +137,8 @@ return [
     'transactions_list' => 'פירוט עסקאות',
     'total_trips_count' => 'כמות טיולים',
     'creation_date' => 'תאריך פתיחה',
+    'upcoming_trip' => 'טיול קרוב: :destination',
+    'trip_starts_in_days' => 'הטיול עבור :customer מתחיל בעוד :days ימים (:date).',
+    'trip_starts_tomorrow' => 'הטיול עבור :customer מתחיל מחר!',
+    'view_trip' => 'צפה בטיול',
 ];

@@ -137,4 +137,8 @@ return [
     'transactions_list' => 'Transactions List',
     'total_trips_count' => 'Total Trips Count',
     'creation_date' => 'Creation Date',
+    'upcoming_trip' => 'Upcoming Trip: :destination',
+    'trip_starts_in_days' => 'Trip for :customer starts in :days days (:date).',
+    'trip_starts_tomorrow' => 'Trip for :customer starts tomorrow!',
+    'view_trip' => 'View Trip',
 ];
