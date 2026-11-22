@@ -226,6 +226,7 @@ class TenantResource extends Resource
                         return redirect('/agent');
                     }),
                 Tables\Actions\EditAction::make(),
+                \App\Filament\Actions\SendAdminNotificationAction::makeTableAction(),
                 \App\Filament\Actions\SendTenantRenewalAction::makeTableAction(),
                 Tables\Actions\Action::make('renew')
                     ->label(__('ui.renew_subscription'))

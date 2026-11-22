@@ -13,6 +13,7 @@ class ListTenants extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            \App\Filament\Actions\SendAdminNotificationAction::makeHeaderAction(),
             Actions\CreateAction::make(),
         ];
     }

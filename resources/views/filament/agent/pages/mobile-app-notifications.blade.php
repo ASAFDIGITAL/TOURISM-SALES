@@ -174,10 +174,20 @@
                         this.canPromptInstall = false;
                     });
 
-                    this.pushSupported = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window) && Boolean(cfg.vapidPublicKey);
+                    const hasPushApi = ('serviceWorker' in navigator)
+                        && (('PushManager' in window) || ('ServiceWorkerRegistration' in window && 'pushManager' in ServiceWorkerRegistration.prototype))
+                        && ('Notification' in window);
+
+                    this.pushSupported = hasPushApi && Boolean(cfg.vapidPublicKey);
 
                     if (!this.pushSupported) {
-                        this.statusText = this.isIos && !this.isStandalone ? cfg.labels.iosInstallFirst : cfg.labels.unsupported;
+                        if (!cfg.vapidPublicKey) {
+                            this.statusText = 'חסר מפתח VAPID_PUBLIC_KEY בהגדרות השרת (.env).';
+                        } else if (this.isIos) {
+                            this.statusText = cfg.labels.iosInstallFirst;
+                        } else {
+                            this.statusText = cfg.labels.unsupported;
+                        }
                         return;
                     }
 
