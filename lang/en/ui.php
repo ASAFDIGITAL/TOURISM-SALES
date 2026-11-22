@@ -438,4 +438,7 @@ return [
     'admin_notify_channel_email' => 'Email',
     'admin_notification_sent_title' => 'Alert sent successfully!',
     'admin_notification_sent_summary' => 'Delivered: Bell (:bell), Push (:push), SMS (:sms), Email (:email).',
+    'push_welcome_title' => 'Notifications Enabled — TOURISM-SALES',
+    'push_welcome_body' => 'Awesome! You will now receive real-time push alerts on this device.',
+    'push_enabled_with_welcome' => 'Push notifications enabled! A confirmation alert has been sent to your device.',
 ];

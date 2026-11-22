@@ -15,6 +15,7 @@
                 iosInstallFirst: @js(__('ui.ios_install_first')),
                 testSent: @js(__('ui.push_test_sent')),
                 testFailed: @js(__('ui.push_test_failed')),
+                enabledWithWelcome: @js(__('ui.push_enabled_with_welcome')),
             },
         })"
         x-init="init()"
@@ -93,7 +94,7 @@
                                 type="button"
                                 color="primary"
                                 icon="heroicon-o-bell-alert"
-                                x-bind:disabled="busy || !pushSupported"
+                                x-bind:disabled="busy"
                                 x-on:click="subscribe()"
                             >
                                 {{ __('ui.enable_push_btn') }}
@@ -224,9 +225,16 @@
                 },
 
                 async subscribe() {
-                    this.busy = true;
                     this.feedbackMessage = '';
                     this.feedbackIsError = false;
+
+                    if (!this.pushSupported) {
+                        this.feedbackIsError = true;
+                        this.feedbackMessage = this.statusText || cfg.labels.unsupported;
+                        return;
+                    }
+
+                    this.busy = true;
 
                     try {
                         const permission = await Notification.requestPermission();
@@ -234,6 +242,10 @@
                             this.feedbackIsError = true;
                             this.feedbackMessage = cfg.labels.denied;
                             return;
+                        }
+
+                        if (!await navigator.serviceWorker.getRegistration('/')) {
+                            await navigator.serviceWorker.register('/sw.js', { scope: '/' });
                         }
 
                         const reg = await navigator.serviceWorker.ready;
@@ -266,13 +278,13 @@
                             this.isSubscribed = true;
                             this.devicesCount = data.count;
                             this.statusText = cfg.labels.enabled;
-                            this.feedbackMessage = cfg.labels.enabled;
+                            this.feedbackMessage = cfg.labels.enabledWithWelcome;
                         } else {
-                            throw new Error('Subscribe failed');
+                            throw new Error(data.message || 'Subscribe failed');
                         }
                     } catch (e) {
                         this.feedbackIsError = true;
-                        this.feedbackMessage = cfg.labels.unsupported;
+                        this.feedbackMessage = (e && e.message) ? (cfg.labels.unsupported + ' (' + e.message + ')') : cfg.labels.unsupported;
                     } finally {
                         this.busy = false;
                     }

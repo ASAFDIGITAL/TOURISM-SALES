@@ -436,4 +436,7 @@ return [
     'admin_notify_channel_email' => 'البريد الإلكتروني',
     'admin_notification_sent_title' => 'تم إرسال الإشعار بنجاح!',
     'admin_notification_sent_summary' => 'تم الإرسال: النظام (:bell)، Push (:push)، SMS (:sms)، بريد (:email).',
+    'push_welcome_title' => 'تم تفعيل الإشعارات بنجاح — TOURISM-SALES',
+    'push_welcome_body' => 'ممتاز! ستصلك الآن الإشعارات الفورية مباشرة على شاشة هاتفك.',
+    'push_enabled_with_welcome' => 'تم تفعيل إشعارات Push بنجاح! تم إرسال إشعار تأكيد إلى جهازك.',
 ];

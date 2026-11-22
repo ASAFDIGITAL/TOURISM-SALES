@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 class PushSubscriptionController extends Controller
 {
-    public function subscribe(Request $request): JsonResponse
+    public function subscribe(Request $request, WebPushService $webPushService): JsonResponse
     {
         $validated = $request->validate([
             'endpoint' => ['required', 'url', 'max:2048'],
@@ -35,10 +35,28 @@ class PushSubscriptionController extends Controller
             ]
         );
 
+        $welcomeSent = 0;
+        if (! app()->runningUnitTests()) {
+            try {
+                $lang = $user->language ?: ($user->getActiveTenant()?->language ?: 'he');
+                $welcomeSent = $webPushService->sendToUser(
+                    user: $user,
+                    title: __('ui.push_welcome_title', [], $lang),
+                    body: __('ui.push_welcome_body', [], $lang),
+                    url: $user->isSuperAdmin() ? '/' : '/agent',
+                    tag: 'tourism-sales-welcome',
+                    locale: $lang,
+                );
+            } catch (\Throwable) {
+                // Keep subscription confirmation resilient
+            }
+        }
+
         return response()->json([
             'ok' => true,
             'id' => $subscription->id,
             'count' => $user->pushSubscriptions()->count(),
+            'welcome_sent' => $welcomeSent > 0,
         ]);
     }
 

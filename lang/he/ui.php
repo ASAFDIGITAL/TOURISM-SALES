@@ -438,4 +438,7 @@ return [
     'admin_notify_channel_email' => 'אימייל',
     'admin_notification_sent_title' => 'ההתראה נשלחה בהצלחה!',
     'admin_notification_sent_summary' => 'נשלח: פעמון מערכת (:bell), התראות Push (:push), SMS (:sms), אימייל (:email).',
+    'push_welcome_title' => 'התראות הופעלו בהצלחה — TOURISM-SALES',
+    'push_welcome_body' => 'מעולה! מעתה תקבל התראות בזמן אמת ישירות למסך הטלפון.',
+    'push_enabled_with_welcome' => 'התראות Push הופעלו בהצלחה! נשלחה התראת אישור למכשיר שלך.',
 ];
