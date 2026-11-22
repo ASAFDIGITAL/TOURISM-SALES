@@ -31,10 +31,15 @@ class AgentSettings extends Page
 
     public function mount(): void
     {
-        $tenant = Auth::user()->tenant;
+        $tenant = Auth::user()->getActiveTenant();
+        if (!$tenant) {
+            $this->redirect('/');
+            return;
+        }
         $this->form->fill([
             'name' => $tenant->name,
             'logo_path' => $tenant->logo_path,
+            'pdf_header_theme' => $tenant->pdf_header_theme ?? 'dark',
             'currency' => $tenant->currency,
             'language' => $tenant->language,
             'receipt_prefix' => $tenant->receipt_prefix,
@@ -63,6 +68,14 @@ class AgentSettings extends Page
                     ->directory('logos')
                     ->image()
                     ->preserveFilenames(),
+                Select::make('pdf_header_theme')
+                    ->label(__('ui.pdf_header_theme'))
+                    ->options([
+                        'dark' => __('ui.pdf_header_dark'),
+                        'light' => __('ui.pdf_header_light'),
+                    ])
+                    ->default('dark')
+                    ->required(),
                 Select::make('currency')
                     ->label(__('ui.currency'))
                     ->options([
@@ -95,7 +108,11 @@ class AgentSettings extends Page
 
     public function save(): void
     {
-        $tenant = Auth::user()->tenant;
+        $tenant = Auth::user()->getActiveTenant();
+        if (!$tenant) {
+            $this->redirect('/');
+            return;
+        }
         $data = $this->form->getState();
 
         // Ensure logo_path is a string if it's an array

@@ -12,7 +12,7 @@ class ExpiringTenantsWidget extends BaseWidget
 {
     protected int | string | array $columnSpan = 'full';
 
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 3;
 
     public function getTableHeading(): string
     {
@@ -26,7 +26,11 @@ class ExpiringTenantsWidget extends BaseWidget
         return $table
             ->query(
                 Tenant::query()
-                    ->where('expires_at', '>', now())
+                    ->where(function ($q) {
+                        $q->whereNull('subscription_type')
+                            ->orWhere('subscription_type', '!=', 'lifetime');
+                    })
+                    ->whereNotNull('expires_at')
                     ->where('expires_at', '<=', now()->addDays(30))
                     ->orderBy('expires_at', 'asc')
             )
@@ -50,6 +54,7 @@ class ExpiringTenantsWidget extends BaseWidget
                     ->money($adminCurrency),
             ])
             ->actions([
+                \App\Filament\Actions\SendTenantRenewalAction::makeTableAction(),
                 Tables\Actions\Action::make('renew')
                     ->label(__('ui.renew_subscription'))
                     ->icon('heroicon-o-arrow-path')

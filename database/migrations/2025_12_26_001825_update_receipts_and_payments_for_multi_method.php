@@ -18,9 +18,21 @@ return new class extends Migration
         });
 
         // Data migration: Set trip_id based on the first linked payment
-        DB::table('receipts')
-            ->join('payments', 'receipts.payment_id', '=', 'payments.id')
-            ->update(['receipts.trip_id' => DB::raw('payments.trip_id')]);
+        if (DB::getDriverName() === 'sqlite') {
+            DB::table('receipts')
+                ->whereNotNull('payment_id')
+                ->get(['id', 'payment_id'])
+                ->each(function ($receipt) {
+                    $tripId = DB::table('payments')->where('id', $receipt->payment_id)->value('trip_id');
+                    if ($tripId !== null) {
+                        DB::table('receipts')->where('id', $receipt->id)->update(['trip_id' => $tripId]);
+                    }
+                });
+        } else {
+            DB::table('receipts')
+                ->join('payments', 'receipts.payment_id', '=', 'payments.id')
+                ->update(['receipts.trip_id' => DB::raw('payments.trip_id')]);
+        }
 
         Schema::table('receipts', function (Blueprint $blueprint) {
             $blueprint->foreign('trip_id')->references('id')->on('trips')->cascadeOnDelete();
@@ -31,9 +43,18 @@ return new class extends Migration
         });
 
         // Back-populate payments with their receipt_id
-        DB::table('payments')
-            ->join('receipts', 'payments.id', '=', 'receipts.payment_id')
-            ->update(['payments.receipt_id' => DB::raw('receipts.id')]);
+        if (DB::getDriverName() === 'sqlite') {
+            DB::table('receipts')
+                ->whereNotNull('payment_id')
+                ->get(['id', 'payment_id'])
+                ->each(function ($receipt) {
+                    DB::table('payments')->where('id', $receipt->payment_id)->update(['receipt_id' => $receipt->id]);
+                });
+        } else {
+            DB::table('payments')
+                ->join('receipts', 'payments.id', '=', 'receipts.payment_id')
+                ->update(['payments.receipt_id' => DB::raw('receipts.id')]);
+        }
     }
 
     /**

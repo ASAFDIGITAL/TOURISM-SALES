@@ -47,6 +47,10 @@ class UserResource extends Resource
                     ->email()
                     ->required()
                     ->maxLength(255),
+                Forms\Components\TextInput::make('phone')
+                    ->label(__('ui.phone'))
+                    ->tel()
+                    ->maxLength(30),
                 Forms\Components\DateTimePicker::make('email_verified_at')
                     ->label(__('ui.email_verified_at') ?? 'Email Verified At'),
                 Forms\Components\TextInput::make('password')
@@ -81,6 +85,9 @@ class UserResource extends Resource
                 Tables\Columns\TextColumn::make('email')
                     ->label(__('ui.email'))
                     ->searchable(),
+                Tables\Columns\TextColumn::make('phone')
+                    ->label(__('ui.phone'))
+                    ->searchable(),
                 Tables\Columns\TextColumn::make('email_verified_at')
                     ->label(__('ui.email_verified_at') ?? 'Email Verified At')
                     ->dateTime()
@@ -98,6 +105,17 @@ class UserResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\Action::make('enter_system')
+                    ->label(__('ui.enter_system'))
+                    ->icon('heroicon-o-arrow-right-on-rectangle')
+                    ->color('info')
+                    ->visible(fn (User $record): bool => $record->role === 'agent' && $record->tenant_id !== null)
+                    ->action(function (User $record) {
+                        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+                        auth()->user()->startImpersonatingTenant($record->tenant_id);
+
+                        return redirect('/agent');
+                    }),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('sendPasswordReset')

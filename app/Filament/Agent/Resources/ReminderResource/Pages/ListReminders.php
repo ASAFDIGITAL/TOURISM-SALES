@@ -13,6 +13,7 @@ class ListReminders extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            \App\Filament\Agent\Actions\RequestSmsAccessAction::make(),
             Actions\CreateAction::make(),
         ];
     }

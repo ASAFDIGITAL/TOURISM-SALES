@@ -12,8 +12,10 @@ class TenantScope implements Scope
     {
         if (Auth::check()) {
             $user = Auth::user();
-            if ($user->role === 'agent' && $user->tenant_id) {
-                $builder->where('tenant_id', $user->tenant_id);
+            $tenantId = $user->getActiveTenantId();
+
+            if ($tenantId && ($user->role === 'agent' || $user->isImpersonatingTenant())) {
+                $builder->where($model->getTable() . '.tenant_id', $tenantId);
             }
         }
     }

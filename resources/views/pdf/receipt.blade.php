@@ -1,169 +1,437 @@
 @php
-    $isRtl = $tenant->language !== 'en';
-    $f = function($text) use ($isRtl) {
+    $lang = $tenant->language ?: 'he';
+    $isRtl = $lang !== 'en';
+    $isLightHeader = ($tenant->pdf_header_theme ?? 'dark') === 'light';
+    $useOpenSans = $lang !== 'ar'
+        && file_exists(storage_path('fonts/OpenSans-Regular.ttf'))
+        && file_exists(storage_path('fonts/OpenSans-Bold.ttf'));
+    $align = $isRtl ? 'right' : 'left';
+
+    $t = function (string $key) use ($lang): string {
+        return __($key, [], $lang);
+    };
+
+    $f = function (?string $text) use ($isRtl): string {
+        if ($text === null || $text === '') {
+            return '';
+        }
+
         return $isRtl ? \App\Helpers\PdfHelper::fixRtl($text) : $text;
     };
-    // Helper to combine label and value and reverse the whole line
-    $line = function($label, $value) use ($f, $isRtl) {
-        if ($isRtl) {
-            // In RTL, we want Label: Value. 
-            // Reversed this becomes [Reversed Value] [Reversed Label:]
-            return $f($label . ': ' . $value);
+
+    $logoFullPath = null;
+    if (!empty($tenant->logo_path)) {
+        $publicCandidate = storage_path('app/public/' . $tenant->logo_path);
+        $privateCandidate = storage_path('app/private/' . $tenant->logo_path);
+        if (file_exists($publicCandidate)) {
+            $logoFullPath = $publicCandidate;
+        } elseif (file_exists($privateCandidate)) {
+            $logoFullPath = $privateCandidate;
         }
-        return '<strong>' . $label . ':</strong> ' . $value;
+    }
+
+    $currencySymbol = match ($tenant->currency ?? 'ILS') {
+        'ILS' => '₪',
+        'EUR' => '€',
+        'GBP' => '£',
+        default => '$',
     };
+
+    $thankYouText = match ($lang) {
+        'ar' => 'شكراً لتعاملكم معنا',
+        'en' => 'Thank you for choosing us',
+        default => 'תודה שבחרתם בנו',
+    };
+    $issueDateLabel = match ($lang) {
+        'ar' => 'تاريخ الإصدار',
+        'en' => 'Issue Date',
+        default => 'תאריך הפקה',
+    };
+    $paymentsDetailsLabel = match ($lang) {
+        'ar' => 'تفاصيل المدفوعات',
+        'en' => 'Payment Details',
+        default => 'פירוט תשלומים',
+    };
+
+    $issueDate = $receipt->created_at ? $receipt->created_at->format('d/m/Y') : now()->format('d/m/Y');
+    $total = $receipt->payments->sum('amount');
+
+    $facts = [
+        [
+            'label' => $t('ui.customer'),
+            'value' => $customer?->name ?? '–',
+            'sub' => $customer?->phone ?: ($customer?->email ?: null),
+            'is_text' => true,
+        ],
+        [
+            'label' => $t('ui.trip'),
+            'value' => $trip?->title ?? '–',
+            'sub' => null,
+            'is_text' => true,
+        ],
+        [
+            'label' => $t('ui.paid_at'),
+            'value' => $issueDate,
+            'sub' => null,
+            'is_text' => false,
+        ],
+        [
+            'label' => $t('ui.receipt_number'),
+            'value' => (string) $receipt->receipt_number,
+            'sub' => null,
+            'is_text' => false,
+        ],
+    ];
+    if ($isRtl) {
+        $facts = array_reverse($facts);
+    }
 @endphp
-<!DOCTYPE html>
-<html lang="{{ $tenant->language }}" dir="{{ $tenant->language === 'en' ? 'ltr' : 'rtl' }}">
+<!doctype html>
+<html lang="{{ $lang }}" dir="{{ $isRtl ? 'rtl' : 'ltr' }}">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <title>Receipt {{ $receipt->receipt_number }}</title>
+    <title>{{ $f($t('ui.receipt')) }} · {{ $receipt->receipt_number }}</title>
     <style>
+        @if($useOpenSans)
+        @font-face {
+            font-family: 'OpenSans';
+            src: url("{{ storage_path('fonts/OpenSans-Regular.ttf') }}") format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: 'OpenSans';
+            src: url("{{ storage_path('fonts/OpenSans-Bold.ttf') }}") format('truetype');
+            font-weight: bold;
+            font-style: normal;
+        }
+        @endif
+        @page {
+            size: A4;
+            margin: 12mm;
+        }
+        * {
+            box-sizing: border-box;
+        }
         body {
+            @if($useOpenSans)
+            font-family: 'OpenSans', 'DejaVu Sans', sans-serif;
+            @else
             font-family: 'DejaVu Sans', sans-serif;
-            direction: {{ $tenant->language === 'en' ? 'ltr' : 'rtl' }};
-            text-align: {{ $tenant->language === 'en' ? 'left' : 'right' }};
-            padding: 20px;
+            @endif
+            margin: 0;
+            padding: 0;
+            color: #172731;
+            font-size: 12px;
+            line-height: 1.5;
+            background: #ffffff;
         }
-        .header {
-            text-align: center;
-            border-bottom: 2px solid #ddd;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
+        .sheet {
+            background: #ffffff;
+            border-top: 5px solid #f59e0b;
         }
-        .logo {
-            max-width: 150px;
-            height: auto;
-        }
-        .details-box {
-            border: 1px solid #eee;
-            padding: 15px;
-            margin-bottom: 20px;
-        }
-        .row {
-            width: 100%;
-            margin-bottom: 20px;
-        }
-        .col {
-            display: inline-block;
-            width: 48%;
-            vertical-align: top;
-        }
-        table {
+        .brand, .facts, .grid, .sum, .foot {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
         }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: {{ $tenant->language === 'en' ? 'left' : 'right' }};
+        .brand {
+            background: {{ $isLightHeader ? '#ffffff' : '#192c34' }};
+            color: {{ $isLightHeader ? '#172731' : '#ffffff' }};
+            @if($isLightHeader)
+            border-bottom: 1px solid #dee5e4;
+            @endif
+            page-break-inside: avoid;
         }
-        th {
-            background-color: #f2f2f2;
+        .brand td {
+            padding: 14px 18px;
+            vertical-align: middle;
         }
-        .footer {
-            margin-top: 50px;
-            text-align: center;
-            font-size: 0.8em;
-            color: #777;
+        .brand img {
+            max-width: 152px;
+            max-height: 48px;
+            vertical-align: middle;
         }
-        .text-bold { font-weight: bold; }
+        .agency {
+            font-size: 13px;
+            font-weight: bold;
+            color: {{ $isLightHeader ? '#172731' : '#ffffff' }};
+        }
+        .contact {
+            font-size: 10px;
+            color: {{ $isLightHeader ? '#56676e' : '#dce3e6' }};
+            margin-top: 2px;
+        }
+        .hero {
+            padding: 18px 0 14px 0;
+            border-bottom: 1px solid #bec9cb;
+            text-align: {{ $align }};
+        }
+        .kind {
+            color: #805308;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .hero h1 {
+            font-size: 30px;
+            line-height: 1.18;
+            margin: 4px 0 0 0;
+            color: #172731;
+        }
+        .facts {
+            margin: 12px 0;
+            background: #f2f5f3;
+            table-layout: fixed;
+            page-break-inside: avoid;
+        }
+        .facts td {
+            padding: 10px 11px;
+            vertical-align: top;
+            text-align: {{ $align }};
+            width: 25%;
+        }
+        .facts small, .sum small {
+            display: block;
+            color: #58696e;
+            font-size: 10px;
+        }
+        .facts strong {
+            display: block;
+            font-size: 12px;
+            margin-top: 3px;
+            color: #172731;
+        }
+        .unit {
+            margin-top: 18px;
+        }
+        .unit-heading {
+            font-size: 17px;
+            font-weight: bold;
+            margin: 0 0 7px 0;
+            text-align: {{ $align }};
+            color: #172731;
+            page-break-after: avoid;
+        }
+        .count {
+            display: inline-block;
+            color: #825100;
+            font-size: 11px;
+            font-weight: bold;
+            background: #fff0ce;
+            padding: 1px 7px;
+            vertical-align: middle;
+        }
+        .grid {
+            table-layout: fixed;
+        }
+        .grid th, .grid td {
+            text-align: {{ $align }};
+            padding: 7px 6px;
+            border-bottom: 1px solid #dee5e4;
+        }
+        .grid th {
+            font-size: 10.5px;
+            color: #516169;
+            background: #f2f5f3;
+            font-weight: bold;
+        }
+        .grid td {
+            font-size: 12px;
+            color: #172731;
+        }
+        .grid tr {
+            page-break-inside: avoid;
+        }
+        .grid thead {
+            display: table-header-group;
+        }
+        .nowrap {
+            white-space: nowrap;
+        }
+        .sum {
+            background: #fff2d5;
+            margin-top: 18px;
+            page-break-inside: avoid;
+        }
+        .sum td {
+            padding: 16px 18px;
+            vertical-align: middle;
+        }
+        .total {
+            font-size: 24px;
+            font-weight: bold;
+            color: #352710;
+            margin-top: 2px;
+            white-space: nowrap;
+        }
+        .foot {
+            border-top: 1px solid #c6d0d1;
+            margin-top: 24px;
+            color: #50616a;
+            font-size: 10px;
+            page-break-inside: avoid;
+        }
+        .foot td {
+            padding: 9px 0;
+        }
     </style>
 </head>
 <body>
+<div class="sheet">
 
-    <div class="header" style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-        <div style="float: left; width: 30%; text-align: left;">
-            @if($tenant->logo_path && file_exists(storage_path('app/public/' . $tenant->logo_path)))
-                <img src="{{ storage_path('app/public/' . $tenant->logo_path) }}" class="logo" alt="Logo">
-            @endif
-        </div>
-        <div style="float: right; width: 65%; text-align: right;">
-            <p style="margin: 0; font-size: 1.1em; font-weight: bold;">{{ $f($tenant->name) }}</p>
-            <p style="margin: 2px 0; font-size: 0.9em;">{{ $tenant->email }}</p>
-            <p style="margin: 0; font-size: 0.9em;">{{ $tenant->phone }}</p>
-        </div>
-        <div style="clear: both;"></div>
-    </div>
-
-    <!-- Customer & Receipt Info Grouped on the right for RTL -->
-    <div style="margin-bottom: 30px; text-align: {{ $isRtl ? 'right' : 'left' }};">
-        <h2 style="margin: 0; font-size: 1.6em; font-weight: bold; margin-bottom: 10px;">{{ $f($customer->name) }}</h2>
-        <p style="margin: 3px 0; font-size: 1em;">
-            {!! $isRtl ? $f(__('ui.paid_at') . ': ' . $receipt->created_at->format('d/m/Y')) : '<strong>' . __('ui.paid_at') . ':</strong> ' . $receipt->created_at->format('d/m/Y') !!}
-        </p>
-        <p style="margin: 3px 0; font-size: 1em;">
-            {!! $isRtl ? $f(__('ui.receipt_number') . ': ' . $receipt->receipt_number) : '<strong>' . __('ui.receipt_number') . ':</strong> ' . $receipt->receipt_number !!}
-        </p>
-    </div>
-
-    <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
-        <thead>
-            <tr style="border-top: 1px solid #000; border-bottom: 1px solid #000;">
-                @if($isRtl)
-                    <th style="padding: 10px 5px; text-align: left; font-size: 0.8em; color: #000; text-transform: uppercase;">{{ $f(__('ui.amount')) }}</th>
-                    <th style="padding: 10px 5px; text-align: right; font-size: 0.8em; color: #000; text-transform: uppercase;">{{ $f(__('ui.cheque_number')) }}</th>
-                    <th style="padding: 10px 5px; text-align: right; font-size: 0.8em; color: #000; text-transform: uppercase;">{{ $f(__('ui.method')) }}</th>
-                    <th style="padding: 10px 5px; text-align: right; font-size: 0.8em; color: #000; text-transform: uppercase;">{{ $f(__('ui.notes')) }}</th>
-                @else
-                    <th style="padding: 10px 5px; text-align: left; font-size: 0.8em; color: #000; text-transform: uppercase;">{{ $f(__('ui.notes')) }}</th>
-                    <th style="padding: 10px 5px; text-align: left; font-size: 0.8em; color: #000; text-transform: uppercase;">{{ $f(__('ui.method')) }}</th>
-                    <th style="padding: 10px 5px; text-align: left; font-size: 0.8em; color: #000; text-transform: uppercase;">{{ $f(__('ui.cheque_number')) }}</th>
-                    <th style="padding: 10px 5px; text-align: right; font-size: 0.8em; color: #000; text-transform: uppercase;">{{ $f(__('ui.amount')) }}</th>
-                @endif
-            </tr>
-        </thead>
-        <tbody>
-            @php $total = 0; @endphp
-            @foreach($receipt->payments as $p)
-                @php $total += $p->amount; @endphp
-                <tr style="border-bottom: 1px solid #eee;">
-                    @if($isRtl)
-                        <td style="padding: 15px 5px; text-align: left; font-weight: bold;">
-                            {{ number_format($p->amount, 2) }} 
-                            {{ match($tenant->currency) { 'ILS' => '₪', 'EUR' => '€', 'GBP' => '£', default => '$' } }}
-                        </td>
-                        <td style="padding: 15px 5px; text-align: right;">{{ $p->cheque_number }}</td>
-                        <td style="padding: 15px 5px; text-align: right;">{{ $f(__("ui.{$p->method}")) }}</td>
-                        <td style="padding: 15px 5px; text-align: right;">{{ $f($trip->title) }}</td>
-                    @else
-                        <td style="padding: 15px 5px; text-align: left;">{{ $f($trip->title) }}</td>
-                        <td style="padding: 15px 5px; text-align: left;">{{ $f(__("ui.{$p->method}")) }}</td>
-                        <td style="padding: 15px 5px; text-align: left;">{{ $p->cheque_number }}</td>
-                        <td style="padding: 15px 5px; text-align: right; font-weight: bold;">
-                            {{ number_format($p->amount, 2) }} 
-                            {{ match($tenant->currency) { 'ILS' => '₪', 'EUR' => '€', 'GBP' => '£', default => '$' } }}
-                        </td>
+    {{-- Top Brand Bar --}}
+    <table class="brand">
+        <tr>
+            @if($isRtl)
+                <td style="text-align: left; width: 38%;">
+                    @if($logoFullPath)
+                        <img src="{{ $logoFullPath }}" alt="">
                     @endif
-                </tr>
-            @endforeach
-        </tbody>
+                </td>
+                <td style="text-align: right; width: 62%;">
+                    <div class="agency">{{ $f($tenant->name) }}</div>
+                    <div class="contact">
+                        {{ $tenant->email }}@if($tenant->email && $tenant->phone) · @endif{{ $tenant->phone }}
+                    </div>
+                </td>
+            @else
+                <td style="text-align: left; width: 62%;">
+                    <div class="agency">{{ $tenant->name }}</div>
+                    <div class="contact">
+                        {{ $tenant->email }}@if($tenant->email && $tenant->phone) · @endif{{ $tenant->phone }}
+                    </div>
+                </td>
+                <td style="text-align: right; width: 38%;">
+                    @if($logoFullPath)
+                        <img src="{{ $logoFullPath }}" alt="">
+                    @endif
+                </td>
+            @endif
+        </tr>
     </table>
 
-    <div style="margin-top: 40px;">
-        <div style="float: right; width: 40%; text-align: right;">
-            <p style="font-size: 0.9em; margin-bottom: 5px; color: #666; text-transform: uppercase;">{{ $f(__('ui.total_amount')) }}</p>
-            <p style="font-size: 1.8em; font-weight: bold; margin: 0;">
-                {{ number_format($total, 2) }}
-                {{ match($tenant->currency) { 'ILS' => '₪', 'EUR' => '€', 'GBP' => '£', default => '$' } }}
-            </p>
-        </div>
-        <div style="float: left; width: 50%; text-align: left; padding-top: 10px;">
-            <p style="font-size: 1.2em; color: #000;">{{ $isRtl ? $f('❤ תודה רבה!') : '❤ Thank you!' }}</p>
-        </div>
-        <div style="clear: both;"></div>
+    {{-- Hero --}}
+    <div class="hero">
+        <div class="kind">{{ $f($t('ui.receipt')) }}</div>
+        <h1>{{ $receipt->receipt_number }}</h1>
     </div>
 
-    <div class="footer" style="position: absolute; bottom: 0; width: 100%; border-top: 1px solid #eee; padding-top: 10px;">
-        <table style="width: 100%; border: none;">
-            <tr>
-                <td style="border: none; font-size: 0.8em; color: #666;">{{ $tenant->email }} | {{ $tenant->phone }}</td>
-                <td style="border: none; text-align: right; font-size: 0.8em; color: #666;">Page 1 of 1</td>
-            </tr>
+    {{-- Facts Strip --}}
+    <table class="facts">
+        <tr>
+            @foreach($facts as $fact)
+                <td>
+                    <small>{{ $f($fact['label']) }}</small>
+                    <strong>
+                        {{ $fact['is_text'] ? $f($fact['value']) : $fact['value'] }}
+                        @if(!empty($fact['sub']))
+                            <br>{{ $f($fact['sub']) }}
+                        @endif
+                    </strong>
+                </td>
+            @endforeach
+        </tr>
+    </table>
+
+    {{-- Payments Breakdown --}}
+    <div class="unit">
+        <div class="unit-heading">
+            @if($isRtl)
+                <span class="count">{{ $receipt->payments->count() }}</span> {{ $f($paymentsDetailsLabel) }}
+            @else
+                {{ $paymentsDetailsLabel }} <span class="count">{{ $receipt->payments->count() }}</span>
+            @endif
+        </div>
+        <table class="grid">
+            <thead>
+                <tr>
+                    @if($isRtl)
+                        <th>{{ $f($t('ui.amount')) }}</th>
+                        <th>{{ $f($t('ui.paid_at')) }}</th>
+                        <th>{{ $f($t('ui.cheque_number')) }}</th>
+                        <th>{{ $f($t('ui.method')) }}</th>
+                        <th>{{ $f($t('ui.trip')) }}</th>
+                    @else
+                        <th>{{ $t('ui.trip') }}</th>
+                        <th>{{ $t('ui.method') }}</th>
+                        <th>{{ $t('ui.cheque_number') }}</th>
+                        <th>{{ $t('ui.paid_at') }}</th>
+                        <th>{{ $t('ui.amount') }}</th>
+                    @endif
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($receipt->payments as $p)
+                    @php
+                        $paidDate = $p->paid_at ? $p->paid_at->format('d/m/Y') : $issueDate;
+                        $formattedAmt = $currencySymbol . ' ' . number_format((float) $p->amount, 2);
+                    @endphp
+                    <tr>
+                        @if($isRtl)
+                            <td class="nowrap"><strong>{{ $formattedAmt }}</strong></td>
+                            <td class="nowrap">{{ $paidDate }}</td>
+                            <td>{{ $p->cheque_number ?: '–' }}</td>
+                            <td>{{ $f($t("ui.{$p->method}")) }}</td>
+                            <td>{{ $f($trip?->title ?? '–') }}</td>
+                        @else
+                            <td>{{ $trip?->title ?? '–' }}</td>
+                            <td>{{ $t("ui.{$p->method}") }}</td>
+                            <td>{{ $p->cheque_number ?: '–' }}</td>
+                            <td class="nowrap">{{ $paidDate }}</td>
+                            <td class="nowrap"><strong>{{ $formattedAmt }}</strong></td>
+                        @endif
+                    </tr>
+                @endforeach
+            </tbody>
         </table>
     </div>
 
+    {{-- Summary Total Bar --}}
+    <table class="sum">
+        <tr>
+            @if($isRtl)
+                <td style="text-align: left; width: 55%; color: #172731;">
+                    {{ $f($thankYouText) }}<br>
+                    <strong>{{ $f($tenant->name) }}</strong>
+                </td>
+                <td style="text-align: right; width: 45%;">
+                    <small>{{ $f($t('ui.total_amount')) }}</small>
+                    <div class="total">{{ $currencySymbol }} {{ number_format((float) $total, 2) }}</div>
+                </td>
+            @else
+                <td style="text-align: left; width: 45%;">
+                    <small>{{ $t('ui.total_amount') }}</small>
+                    <div class="total">{{ $currencySymbol }} {{ number_format((float) $total, 2) }}</div>
+                </td>
+                <td style="text-align: right; width: 55%; color: #172731;">
+                    {{ $thankYouText }}<br>
+                    <strong>{{ $tenant->name }}</strong>
+                </td>
+            @endif
+        </tr>
+    </table>
+
+    {{-- Footer --}}
+    <table class="foot">
+        <tr>
+            @if($isRtl)
+                <td style="text-align: left; width: 35%;">
+                    {{ $issueDate }} {{ $f($issueDateLabel) }}
+                </td>
+                <td style="text-align: right; width: 65%;">
+                    {{ $tenant->email }}@if($tenant->email && $tenant->phone) · @endif{{ $tenant->phone }}@if(($tenant->email || $tenant->phone) && $tenant->name) · @endif{{ $f($tenant->name) }}
+                </td>
+            @else
+                <td style="text-align: left; width: 65%;">
+                    {{ $tenant->name }}@if($tenant->name && $tenant->phone) · @endif{{ $tenant->phone }}@if(($tenant->name || $tenant->phone) && $tenant->email) · @endif{{ $tenant->email }}
+                </td>
+                <td style="text-align: right; width: 35%;">
+                    {{ $issueDateLabel }} {{ $issueDate }}
+                </td>
+            @endif
+        </tr>
+    </table>
+
+</div>
 </body>
 </html>

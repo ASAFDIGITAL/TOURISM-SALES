@@ -12,7 +12,7 @@ class CreateReminder extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $data['tenant_id'] = auth()->user()->tenant_id;
+        $data['tenant_id'] = auth()->user()->getActiveTenantId();
         return $data;
     }
 }

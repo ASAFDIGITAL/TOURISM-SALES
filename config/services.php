@@ -35,4 +35,16 @@ return [
         ],
     ],
 
+    'inforu' => [
+        'endpoint' => env('INFORU_API_URL', 'https://capi.inforu.co.il/api/v2/SMS/SendSms'),
+        'basic_auth' => env('INFORU_BASIC_AUTH'),
+        'sender' => env('INFORU_SENDER', 'AsafDigital'),
+    ],
+
+    'webpush' => [
+        'subject' => env('VAPID_SUBJECT', 'mailto:info@asafdigital.com'),
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+    ],
+
 ];

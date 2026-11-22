@@ -41,7 +41,14 @@ class RedirectIfWrongPanel
         }
 
         if ($user->role === 'super_admin' && $panel->getId() === 'agent') {
-            return redirect('/');
+            if (!$user->isImpersonatingTenant()) {
+                return redirect('/');
+            }
+
+            if (!$user->getActiveTenant()) {
+                $user->stopImpersonatingTenant();
+                return redirect('/');
+            }
         }
 
         return $next($request);

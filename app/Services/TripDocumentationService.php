@@ -14,6 +14,8 @@ class TripDocumentationService
 
         return Pdf::loadView('pdf.itinerary', compact('trip', 'customer', 'tenant'))
             ->setPaper('a4')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isRemoteEnabled', false)
             ->output();
     }
 }

@@ -13,7 +13,10 @@ class Reminder extends Model
     protected $fillable = [
         'tenant_id',
         'trip_id',
+        'category',
+        'recipient_type',
         'channel',
+        'message_language',
         'scheduled_at',
         'status',
         'message',

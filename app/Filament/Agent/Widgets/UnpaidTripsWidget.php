@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Auth;
 
 class UnpaidTripsWidget extends BaseWidget
 {
+    protected static ?int $sort = 7;
+
     protected int | string | array $columnSpan = 'full';
 
     public function getTableHeading(): string
@@ -19,7 +21,7 @@ class UnpaidTripsWidget extends BaseWidget
 
     public function table(Table $table): Table
     {
-        $currency = Auth::user()->tenant->currency ?? 'USD';
+        $currency = Auth::user()->getActiveTenant()?->currency ?? 'USD';
         $symbol = match($currency) {
             'ILS' => '₪',
             'EUR' => '€',
@@ -29,7 +31,7 @@ class UnpaidTripsWidget extends BaseWidget
 
         return $table
             ->query(
-                Trip::where('tenant_id', Auth::user()->tenant_id)
+                Trip::where('tenant_id', Auth::user()->getActiveTenantId())
                     ->where('status', '!=', 'cancelled')
                     ->whereRaw('total_amount > (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE payments.trip_id = trips.id)')
             )
@@ -44,7 +46,7 @@ class UnpaidTripsWidget extends BaseWidget
                 Tables\Columns\TextColumn::make('total_amount')
                     ->label(__('ui.total_amount'))
                     ->formatStateUsing(function ($state) {
-                        $currency = Auth::user()->tenant->currency ?? 'USD';
+                        $currency = Auth::user()->getActiveTenant()?->currency ?? 'USD';
                         $symbol = match($currency) { 'ILS' => '₪', 'EUR' => '€', 'GBP' => '£', default => '$' };
                         return $symbol . ' ' . number_format($state, 2);
                     }),
@@ -52,7 +54,7 @@ class UnpaidTripsWidget extends BaseWidget
                     ->label(__('ui.paid'))
                     ->getStateUsing(fn (Trip $record) => $record->payments->sum('amount'))
                     ->formatStateUsing(function ($state) {
-                        $currency = Auth::user()->tenant->currency ?? 'USD';
+                        $currency = Auth::user()->getActiveTenant()?->currency ?? 'USD';
                         $symbol = match($currency) { 'ILS' => '₪', 'EUR' => '€', 'GBP' => '£', default => '$' };
                         return $symbol . ' ' . number_format($state, 2);
                     }),
@@ -60,7 +62,7 @@ class UnpaidTripsWidget extends BaseWidget
                     ->label(__('ui.balance'))
                     ->getStateUsing(fn (Trip $record) => $record->total_amount - $record->payments->sum('amount'))
                     ->formatStateUsing(function ($state) {
-                        $currency = Auth::user()->tenant->currency ?? 'USD';
+                        $currency = Auth::user()->getActiveTenant()?->currency ?? 'USD';
                         $symbol = match($currency) { 'ILS' => '₪', 'EUR' => '€', 'GBP' => '£', default => '$' };
                         return $symbol . ' ' . number_format($state, 2);
                     })
@@ -76,6 +78,13 @@ class UnpaidTripsWidget extends BaseWidget
                         'completed' => 'success',
                         'cancelled' => 'danger',
                     }),
+            ])
+            ->actions([
+                \App\Filament\Agent\Actions\SendTripMessageAction::makeTableAction(
+                    name: 'send_payment_reminder',
+                    defaultTemplate: \App\Services\TripMessageService::TEMPLATE_PAYMENT_REMINDER,
+                    label: __('ui.msg_payment_reminder'),
+                ),
             ]);
     }
 }

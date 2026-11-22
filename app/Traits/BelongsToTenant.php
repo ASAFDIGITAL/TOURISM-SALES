@@ -15,9 +15,10 @@ trait BelongsToTenant
         static::creating(function (Model $model) {
             if (Auth::check()) {
                 $user = Auth::user();
+                $tenantId = $user->getActiveTenantId();
                 // Automatically assign tenant_id if not set manually
-                if (!$model->tenant_id && $user->tenant_id) {
-                    $model->tenant_id = $user->tenant_id;
+                if (!$model->tenant_id && $tenantId) {
+                    $model->tenant_id = $tenantId;
                 }
             }
         });

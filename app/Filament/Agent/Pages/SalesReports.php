@@ -2,14 +2,16 @@
 
 namespace App\Filament\Agent\Pages;
 
-use Filament\Pages\Page;
-use App\Models\Trip;
 use App\Models\Payment;
-use Illuminate\Support\Facades\Auth;
-use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Concerns\InteractsWithTable;
+use App\Models\Trip;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Filament\Actions\Action;
+use Filament\Pages\Page;
 use Filament\Tables;
+use Filament\Tables\Concerns\InteractsWithTable;
+use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class SalesReports extends Page implements HasTable
 {
@@ -38,10 +40,122 @@ class SalesReports extends Page implements HasTable
         $this->toDate = now()->endOfMonth()->format('Y-m-d');
     }
 
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('download_pdf')
+                ->label(__('ui.download_pdf'))
+                ->icon('heroicon-o-document-arrow-down')
+                ->color('primary')
+                ->action(fn () => $this->downloadPdf()),
+            Action::make('download_csv')
+                ->label(__('ui.download_csv'))
+                ->icon('heroicon-o-table-cells')
+                ->color('gray')
+                ->action(fn () => $this->downloadCsv()),
+        ];
+    }
+
+    public function downloadPdf()
+    {
+        $tenant = Auth::user()->getActiveTenant();
+        $tenantId = Auth::user()->getActiveTenantId();
+
+        $trips = Trip::with(['customer', 'payments'])
+            ->where('tenant_id', $tenantId)
+            ->when($this->fromDate, fn ($q) => $q->whereDate('created_at', '>=', $this->fromDate))
+            ->when($this->toDate, fn ($q) => $q->whereDate('created_at', '<=', $this->toDate))
+            ->where('status', '!=', 'cancelled')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $revenueQuery = Payment::where('tenant_id', $tenantId)
+            ->when($this->fromDate, fn ($q) => $q->whereDate('paid_at', '>=', $this->fromDate))
+            ->when($this->toDate, fn ($q) => $q->whereDate('paid_at', '<=', $this->toDate));
+
+        $totalRevenue = (float) $revenueQuery->sum('amount');
+        $totalSales = (float) $trips->sum('total_amount');
+        $totalBalance = (float) $trips->sum(fn (Trip $t) => (float) $t->total_amount - (float) $t->payments->sum('amount'));
+        $tripsCount = $trips->count();
+
+        $content = Pdf::loadView('pdf.sales-report', [
+            'tenant' => $tenant,
+            'trips' => $trips,
+            'fromDate' => $this->fromDate,
+            'toDate' => $this->toDate,
+            'totalRevenue' => $totalRevenue,
+            'totalSales' => $totalSales,
+            'totalBalance' => $totalBalance,
+            'tripsCount' => $tripsCount,
+        ])
+            ->setPaper('a4')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isRemoteEnabled', false)
+            ->output();
+
+        $suffix = ($this->fromDate ?: 'all') . '_' . ($this->toDate ?: 'all');
+
+        return response()->streamDownload(function () use ($content) {
+            echo $content;
+        }, "sales-report-{$suffix}.pdf");
+    }
+
+    public function downloadCsv()
+    {
+        $tenantId = Auth::user()->getActiveTenantId();
+        $trips = Trip::with(['customer', 'payments'])
+            ->where('tenant_id', $tenantId)
+            ->when($this->fromDate, fn ($q) => $q->whereDate('created_at', '>=', $this->fromDate))
+            ->when($this->toDate, fn ($q) => $q->whereDate('created_at', '<=', $this->toDate))
+            ->where('status', '!=', 'cancelled')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $suffix = ($this->fromDate ?: 'all') . '_' . ($this->toDate ?: 'all');
+
+        return response()->streamDownload(function () use ($trips) {
+            $out = fopen('php://output', 'w');
+            // UTF-8 BOM for proper Hebrew/Arabic opening in Excel
+            fwrite($out, "\xEF\xBB\xBF");
+
+            fputcsv($out, [
+                __('ui.customer'),
+                __('ui.trip'),
+                __('ui.destination'),
+                __('ui.creation_date'),
+                __('ui.start_date'),
+                __('ui.total_amount'),
+                __('ui.paid'),
+                __('ui.balance'),
+                __('ui.status'),
+            ]);
+
+            foreach ($trips as $trip) {
+                $paid = (float) $trip->payments->sum('amount');
+                $total = (float) $trip->total_amount;
+                fputcsv($out, [
+                    $trip->customer?->name ?? '',
+                    $trip->title,
+                    $trip->destination ?? '',
+                    $trip->created_at?->format('d/m/Y') ?? '',
+                    $trip->start_date?->format('d/m/Y') ?? '',
+                    number_format($total, 2, '.', ''),
+                    number_format($paid, 2, '.', ''),
+                    number_format($total - $paid, 2, '.', ''),
+                    __("ui.{$trip->status}"),
+                ]);
+            }
+
+            fclose($out);
+        }, "sales-report-{$suffix}.csv", [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
     public function getStats(): array
     {
-        $tenantId = Auth::user()->tenant_id;
-        $currency = Auth::user()->tenant->currency ?? 'USD';
+        $tenantId = Auth::user()->getActiveTenantId();
+        $currency = Auth::user()->getActiveTenant()?->currency ?? 'USD';
         $symbol = match($currency) {
             'ILS' => '₪',
             'EUR' => '€',
@@ -83,7 +197,7 @@ class SalesReports extends Page implements HasTable
     {
         return $table
             ->query(
-                Trip::where('tenant_id', Auth::user()->tenant_id)
+                Trip::where('tenant_id', Auth::user()->getActiveTenantId())
                     ->when($this->fromDate, fn ($query) => $query->whereDate('created_at', '>=', $this->fromDate))
                     ->when($this->toDate, fn ($query) => $query->whereDate('created_at', '<=', $this->toDate))
                     ->where('status', '!=', 'cancelled')
@@ -132,7 +246,7 @@ class SalesReports extends Page implements HasTable
 
     protected function formatMoney($amount)
     {
-        $currency = Auth::user()->tenant->currency ?? 'USD';
+        $currency = Auth::user()->getActiveTenant()?->currency ?? 'USD';
         $symbol = match($currency) {
             'ILS' => '₪',
             'EUR' => '€',

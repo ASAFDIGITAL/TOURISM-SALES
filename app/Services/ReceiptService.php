@@ -51,11 +51,14 @@ class ReceiptService
         $customer = $trip->customer;
         $tenant = $receipt->tenant;
 
-        $pdf = Pdf::loadView('pdf.receipt', compact('receipt', 'trip', 'customer', 'tenant'));
-        
+        $pdf = Pdf::loadView('pdf.receipt', compact('receipt', 'trip', 'customer', 'tenant'))
+            ->setPaper('a4')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isRemoteEnabled', false);
+
         return $pdf->download("{$receipt->receipt_number}.pdf");
     }
-    
+
     public function getPdfContent(Receipt $receipt)
     {
         $trip = $receipt->trip;
@@ -64,6 +67,8 @@ class ReceiptService
 
         return Pdf::loadView('pdf.receipt', compact('receipt', 'trip', 'customer', 'tenant'))
             ->setPaper('a4')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isRemoteEnabled', false)
             ->output();
     }
 }

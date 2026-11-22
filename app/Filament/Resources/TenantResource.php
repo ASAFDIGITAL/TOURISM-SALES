@@ -67,9 +67,18 @@ class TenantResource extends Resource
                     ->required(),
                 Forms\Components\FileUpload::make('logo_path')
                     ->label(__('ui.logo') ?? 'Logo')
+                    ->disk('public')
                     ->directory('logos')
                     ->image()
                     ->openable(),
+                Forms\Components\Select::make('pdf_header_theme')
+                    ->label(__('ui.pdf_header_theme'))
+                    ->options([
+                        'dark' => __('ui.pdf_header_dark'),
+                        'light' => __('ui.pdf_header_light'),
+                    ])
+                    ->default('dark')
+                    ->required(),
                 Forms\Components\Select::make('currency')
                     ->label(__('ui.currency'))
                     ->options([
@@ -91,12 +100,22 @@ class TenantResource extends Resource
                     ->required(),
                 Forms\Components\Section::make(__('ui.subscription'))
                     ->schema([
+                        Forms\Components\Select::make('subscription_type')
+                            ->label(__('ui.subscription_type'))
+                            ->options([
+                                'recurring' => __('ui.subscription_recurring'),
+                                'lifetime' => __('ui.subscription_lifetime'),
+                            ])
+                            ->default('recurring')
+                            ->required()
+                            ->live(),
                         Forms\Components\DatePicker::make('joined_at')
                             ->label(__('ui.joined_at'))
                             ->native(false),
                         Forms\Components\DatePicker::make('expires_at')
                             ->label(__('ui.expires_at'))
-                            ->native(false),
+                            ->native(false)
+                            ->visible(fn (\Filament\Forms\Get $get): bool => $get('subscription_type') !== 'lifetime'),
                         Forms\Components\TextInput::make('subscription_amount')
                             ->label(__('ui.subscription_amount'))
                             ->numeric()
@@ -106,7 +125,33 @@ class TenantResource extends Resource
                                 'GBP' => '£',
                                 default => '$',
                             }),
-                    ])->columns(3),
+                        Forms\Components\TextInput::make('renewal_payment_url')
+                            ->label(__('ui.renewal_payment_url'))
+                            ->url()
+                            ->placeholder('https://...')
+                            ->maxLength(500)
+                            ->visible(fn (\Filament\Forms\Get $get): bool => $get('subscription_type') !== 'lifetime')
+                            ->columnSpanFull(),
+                    ])->columns(2),
+                Forms\Components\Section::make(__('ui.reminders_permissions_section'))
+                    ->description(__('ui.reminders_permissions_desc'))
+                    ->schema([
+                        Forms\Components\Toggle::make('reminders_enabled')
+                            ->label(__('ui.reminders_enabled_label'))
+                            ->default(true)
+                            ->live(),
+                        Forms\Components\CheckboxList::make('allowed_channels')
+                            ->label(__('ui.allowed_channels_label'))
+                            ->options([
+                                'push' => __('ui.channel_push'),
+                                'email' => __('ui.email'),
+                                'whatsapp' => 'WhatsApp',
+                                'sms' => 'SMS (InforU)',
+                            ])
+                            ->default(Tenant::ALL_CHANNELS)
+                            ->columns(2)
+                            ->visible(fn (\Filament\Forms\Get $get): bool => (bool) $get('reminders_enabled')),
+                    ]),
             ]);
     }
 
@@ -139,15 +184,21 @@ class TenantResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('days_until_expiry')
                     ->label(__('ui.days_remaining'))
-                    ->state(function (Tenant $record): ?int {
-                        if (!$record->expires_at) return null;
+                    ->state(function (Tenant $record): string|int|null {
+                        if ($record->isLifetime()) {
+                            return __('ui.subscription_lifetime_short');
+                        }
+                        if (!$record->expires_at) {
+                            return null;
+                        }
                         return now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($record->expires_at), false);
                     })
                     ->badge()
-                    ->color(fn ($state) => match (true) {
+                    ->color(fn ($state, Tenant $record) => match (true) {
+                        $record->isLifetime() => 'success',
                         $state === null => 'gray',
-                        $state <= 0 => 'danger',
-                        $state <= 7 => 'warning',
+                        (int) $state <= 0 => 'danger',
+                        (int) $state <= 30 => 'warning',
                         default => 'success',
                     })
                     ->sortable(),
@@ -164,11 +215,23 @@ class TenantResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\Action::make('enter_system')
+                    ->label(__('ui.enter_system'))
+                    ->icon('heroicon-o-arrow-right-on-rectangle')
+                    ->color('info')
+                    ->action(function (Tenant $record) {
+                        abort_unless(auth()->user()?->isSuperAdmin(), 403);
+                        auth()->user()->startImpersonatingTenant($record);
+
+                        return redirect('/agent');
+                    }),
                 Tables\Actions\EditAction::make(),
+                \App\Filament\Actions\SendTenantRenewalAction::makeTableAction(),
                 Tables\Actions\Action::make('renew')
                     ->label(__('ui.renew_subscription'))
                     ->icon('heroicon-o-arrow-path')
                     ->color('success')
+                    ->visible(fn (Tenant $record): bool => !$record->isLifetime())
                     ->form([
                         Forms\Components\TextInput::make('months')
                             ->label('Extra Months')

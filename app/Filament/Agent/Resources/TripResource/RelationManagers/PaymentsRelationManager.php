@@ -31,7 +31,12 @@ class PaymentsRelationManager extends RelationManager
                 Forms\Components\TextInput::make('amount')
                     ->label(__('ui.amount'))
                     ->numeric()
-                    ->prefix(fn () => auth()->user()->tenant->currency === 'ILS' ? '₪' : (auth()->user()->tenant->currency === 'EUR' ? '€' : '$'))
+                    ->prefix(fn () => match (auth()->user()->getActiveTenant()?->currency ?? 'USD') {
+                        'ILS' => '₪',
+                        'EUR' => '€',
+                        'GBP' => '£',
+                        default => '$',
+                    })
                     ->required(),
                 Forms\Components\Select::make('method')
                     ->label(__('ui.method'))
@@ -79,7 +84,7 @@ class PaymentsRelationManager extends RelationManager
             ->headerActions([
                 Tables\Actions\CreateAction::make()
                     ->mutateFormDataUsing(function (array $data): array {
-                        $data['tenant_id'] = auth()->user()->tenant_id;
+                        $data['tenant_id'] = auth()->user()->getActiveTenantId();
                         return $data;
                     }),
             ])

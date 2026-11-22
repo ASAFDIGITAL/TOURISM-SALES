@@ -4,9 +4,13 @@ namespace App\Filament\Agent\Resources;
 
 use App\Filament\Agent\Resources\TripResource\Pages;
 use App\Filament\Agent\Resources\TripResource\RelationManagers;
+use App\Models\Customer;
 use App\Models\Trip;
+use App\Services\AviationDirectoryService;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -45,17 +49,71 @@ class TripResource extends Resource
                                     ->schema([
                                         Forms\Components\Select::make('customer_id')
                                             ->label(__('ui.customer'))
-                                            ->relationship('customer', 'name')
-                                            ->searchable()
+                                            ->relationship(
+                                                name: 'customer',
+                                                titleAttribute: 'name',
+                                                modifyQueryUsing: fn (Builder $query) => $query->orderBy('name'),
+                                            )
+                                            ->getOptionLabelFromRecordUsing(fn (Customer $record): string => trim($record->name . ($record->phone ? ' — ' . $record->phone : '')))
+                                            ->searchable(['name', 'phone', 'email'])
                                             ->preload()
+                                            ->createOptionForm([
+                                                Forms\Components\Grid::make(2)
+                                                    ->schema([
+                                                        Forms\Components\TextInput::make('name')
+                                                            ->label(__('ui.name'))
+                                                            ->required()
+                                                            ->maxLength(255),
+                                                        Forms\Components\TextInput::make('phone')
+                                                            ->label(__('ui.phone'))
+                                                            ->tel()
+                                                            ->maxLength(255),
+                                                        Forms\Components\TextInput::make('email')
+                                                            ->label(__('ui.email'))
+                                                            ->email()
+                                                            ->maxLength(255),
+                                                        Forms\Components\TextInput::make('passport_number')
+                                                            ->label(__('ui.passport_number'))
+                                                            ->maxLength(255),
+                                                    ]),
+                                                Forms\Components\Textarea::make('address')
+                                                    ->label(__('ui.address'))
+                                                    ->rows(2),
+                                                Forms\Components\Textarea::make('notes')
+                                                    ->label(__('ui.notes'))
+                                                    ->rows(2),
+                                            ])
+                                            ->createOptionUsing(function (array $data): int {
+                                                $data['tenant_id'] = auth()->user()->getActiveTenantId();
+
+                                                return Customer::create($data)->getKey();
+                                            })
+                                            ->createOptionModalHeading(__('ui.quick_new_customer'))
+                                            ->createOptionAction(fn (Forms\Components\Actions\Action $action) => $action
+                                                ->label(__('ui.quick_new_customer'))
+                                                ->tooltip(__('ui.quick_new_customer'))
+                                                ->modalSubmitActionLabel(__('ui.quick_new_customer'))
+                                            )
                                             ->required(),
                                         Forms\Components\TextInput::make('title')
                                             ->label(__('ui.title'))
                                             ->required()
                                             ->maxLength(255),
-                                        Forms\Components\TextInput::make('destination')
+                                        Forms\Components\Select::make('destination')
                                             ->label(__('ui.destination'))
-                                            ->maxLength(255),
+                                            ->searchable()
+                                            ->options(fn (): array => app(AviationDirectoryService::class)->searchDestinations('', 30))
+                                            ->getSearchResultsUsing(fn (string $search): array => app(AviationDirectoryService::class)->searchDestinations($search, 25))
+                                            ->getOptionLabelUsing(fn ($value): ?string => $value ? (string) $value : null)
+                                            ->placeholder(__('ui.search_destination_placeholder'))
+                                            ->createOptionForm([
+                                                Forms\Components\TextInput::make('custom_value')
+                                                    ->label(__('ui.destination'))
+                                                    ->required()
+                                                    ->maxLength(255),
+                                            ])
+                                            ->createOptionUsing(fn (array $data): string => trim((string) $data['custom_value']))
+                                            ->createOptionModalHeading(__('ui.custom_destination')),
                                         Forms\Components\DatePicker::make('start_date')
                                             ->label(__('ui.start_date'))
                                             ->native(false),
@@ -75,7 +133,12 @@ class TripResource extends Resource
                                         Forms\Components\TextInput::make('total_amount')
                                             ->label(__('ui.total_amount'))
                                             ->numeric()
-                                            ->prefix(fn () => auth()->user()->tenant->currency === 'ILS' ? '₪' : (auth()->user()->tenant->currency === 'EUR' ? '€' : '$'))
+                                            ->prefix(fn () => match (auth()->user()->getActiveTenant()?->currency ?? 'USD') {
+                                                'ILS' => '₪',
+                                                'EUR' => '€',
+                                                'GBP' => '£',
+                                                default => '$',
+                                            })
                                             ->required(),
                                     ]),
                                 Forms\Components\Textarea::make('notes')
@@ -87,7 +150,7 @@ class TripResource extends Resource
                                 Forms\Components\Repeater::make('hotels')
                                     ->label(__('ui.hotels'))
                                     ->schema([
-                                        Forms\Components\TextInput::make('name')->label(__('ui.hotel_name'))->required(),
+                                        Forms\Components\TextInput::make('name')->label(__('ui.hotel_name')),
                                         Forms\Components\DatePicker::make('from')->label(__('ui.start_date'))->native(false),
                                         Forms\Components\DatePicker::make('until')->label(__('ui.end_date'))->native(false),
                                         Forms\Components\TextInput::make('rooms')->label(__('ui.rooms_count'))->numeric(),
@@ -105,18 +168,92 @@ class TripResource extends Resource
                                                 'return' => __('ui.return'),
                                                 'connection' => __('ui.connection'),
                                             ])
-                                            ->required(),
-                                        Forms\Components\TextInput::make('airline')->label(__('ui.airline')),
-                                        Forms\Components\TextInput::make('flight_number')->label(__('ui.flight_number')),
-                                        Forms\Components\DateTimePicker::make('departure_time')->label(__('ui.departure_time') ?? 'זמן המראה')->native(false),
+                                            ->default('outbound')
+                                            ->columnSpan(['default' => 6, 'md' => 2]),
+
+                                        Forms\Components\Select::make('airline')
+                                            ->label(__('ui.airline'))
+                                            ->searchable()
+                                            ->options(fn (): array => app(AviationDirectoryService::class)->searchAirlines('', 30))
+                                            ->getSearchResultsUsing(fn (string $search): array => app(AviationDirectoryService::class)->searchAirlines($search, 25))
+                                            ->getOptionLabelUsing(fn ($value): ?string => $value ? (string) $value : null)
+                                            ->placeholder(__('ui.search_airline_placeholder'))
+                                            ->live()
+                                            ->afterStateUpdated(function (?string $state, Get $get, Set $set): void {
+                                                if (blank($get('flight_number'))) {
+                                                    $code = app(AviationDirectoryService::class)->extractAirlineCode($state);
+                                                    if ($code) {
+                                                        $set('flight_number', $code);
+                                                    }
+                                                }
+                                            })
+                                            ->createOptionForm([
+                                                Forms\Components\TextInput::make('custom_value')
+                                                    ->label(__('ui.airline'))
+                                                    ->required()
+                                                    ->maxLength(120),
+                                            ])
+                                            ->createOptionUsing(fn (array $data): string => trim((string) $data['custom_value']))
+                                            ->createOptionModalHeading(__('ui.custom_airline'))
+                                            ->columnSpan(['default' => 6, 'md' => 2]),
+
+                                        Forms\Components\TextInput::make('flight_number')
+                                            ->label(__('ui.flight_number'))
+                                            ->placeholder('LY315')
+                                            ->maxLength(32)
+                                            ->columnSpan(['default' => 6, 'md' => 2]),
+
+                                        Forms\Components\Select::make('from_airport')
+                                            ->label(__('ui.from_airport'))
+                                            ->searchable()
+                                            ->options(fn (): array => app(AviationDirectoryService::class)->searchAirports('', 30))
+                                            ->getSearchResultsUsing(fn (string $search): array => app(AviationDirectoryService::class)->searchAirports($search, 25))
+                                            ->getOptionLabelUsing(fn ($value): ?string => $value ? (string) $value : null)
+                                            ->placeholder(__('ui.search_airport_placeholder'))
+                                            ->createOptionForm([
+                                                Forms\Components\TextInput::make('custom_value')
+                                                    ->label(__('ui.from_airport'))
+                                                    ->required()
+                                                    ->maxLength(160),
+                                            ])
+                                            ->createOptionUsing(fn (array $data): string => trim((string) $data['custom_value']))
+                                            ->createOptionModalHeading(__('ui.custom_airport'))
+                                            ->columnSpan(['default' => 6, 'md' => 3]),
+
+                                        Forms\Components\Select::make('to_airport')
+                                            ->label(__('ui.to_airport'))
+                                            ->searchable()
+                                            ->options(fn (): array => app(AviationDirectoryService::class)->searchAirports('', 30))
+                                            ->getSearchResultsUsing(fn (string $search): array => app(AviationDirectoryService::class)->searchAirports($search, 25))
+                                            ->getOptionLabelUsing(fn ($value): ?string => $value ? (string) $value : null)
+                                            ->placeholder(__('ui.search_airport_placeholder'))
+                                            ->createOptionForm([
+                                                Forms\Components\TextInput::make('custom_value')
+                                                    ->label(__('ui.to_airport'))
+                                                    ->required()
+                                                    ->maxLength(160),
+                                            ])
+                                            ->createOptionUsing(fn (array $data): string => trim((string) $data['custom_value']))
+                                            ->createOptionModalHeading(__('ui.custom_airport'))
+                                            ->columnSpan(['default' => 6, 'md' => 3]),
+
+                                        Forms\Components\DateTimePicker::make('departure_time')
+                                            ->label(__('ui.departure_time') ?? 'זמן המראה')
+                                            ->native(false)
+                                            ->columnSpan(['default' => 6, 'md' => 3]),
+
+                                        Forms\Components\DateTimePicker::make('arrival_time')
+                                            ->label(__('ui.arrival_time'))
+                                            ->native(false)
+                                            ->columnSpan(['default' => 6, 'md' => 3]),
                                     ])
-                                    ->columns(4)
+                                    ->columns(6)
                                     ->columnSpanFull(),
 
                                 Forms\Components\Repeater::make('passengers')
                                     ->label(__('ui.passengers'))
                                     ->schema([
-                                        Forms\Components\TextInput::make('name')->label(__('ui.passenger_name'))->required(),
+                                        Forms\Components\TextInput::make('name')->label(__('ui.passenger_name')),
                                     ])
                                     ->columns(1)
                                     ->columnSpanFull(),
@@ -175,6 +312,7 @@ class TripResource extends Resource
                 //
             ])
             ->actions([
+                \App\Filament\Agent\Actions\SendTripMessageAction::makeTableAction(),
                 Tables\Actions\Action::make('download_itinerary')
                     ->label(__('ui.download_itinerary'))
                     ->icon('heroicon-o-document-arrow-down')

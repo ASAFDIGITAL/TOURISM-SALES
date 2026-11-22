@@ -15,24 +15,31 @@ class SetLocaleMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+        $lang = null;
+
         if (auth()->check()) {
             $user = auth()->user();
             $lang = $user->language;
 
             // Fallback to tenant language if user language is not set
-            if (!$lang && $user->tenant) {
-                $lang = $user->tenant->language;
+            $activeTenant = $user->getActiveTenant();
+            if (!$lang && $activeTenant) {
+                $lang = $activeTenant->language;
             }
+        }
 
-            if ($lang) {
-                app()->setLocale($lang);
-                
-                if ($lang === 'ar') {
-                    // Force Western Arabic numerals (0-9)
-                    setlocale(LC_TIME, 'en_US.UTF-8');
-                    setlocale(LC_NUMERIC, 'en_US.UTF-8');
-                    setlocale(LC_MONETARY, 'en_US.UTF-8');
-                }
+        if (!$lang) {
+            $lang = session('locale', config('app.locale', 'he'));
+        }
+
+        if (in_array($lang, ['he', 'ar', 'en'], true)) {
+            app()->setLocale($lang);
+
+            if ($lang === 'ar') {
+                // Force Western Arabic numerals (0-9)
+                setlocale(LC_TIME, 'en_US.UTF-8');
+                setlocale(LC_NUMERIC, 'en_US.UTF-8');
+                setlocale(LC_MONETARY, 'en_US.UTF-8');
             }
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use Filament\FontProviders\GoogleFontProvider;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -10,6 +11,7 @@ use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -28,13 +30,34 @@ class AdminPanelProvider extends PanelProvider
             ->path('')
             ->login(\App\Filament\Pages\Auth\Login::class)
             ->passwordReset()
+            ->brandName('TOURISM-SALES')
+            ->brandLogo(fn () => asset('images/logo-light.png'))
+            ->darkModeBrandLogo(fn () => asset('images/logo-dark.png'))
+            ->brandLogoHeight('2.25rem')
+            ->favicon(fn () => asset('images/favicon.png'))
+            ->font('Open Sans', provider: GoogleFontProvider::class)
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => [
+                    ...Color::Amber,
+                    400 => '251, 191, 36',
+                    500 => '245, 158, 11',
+                    600 => '245, 158, 11',
+                ],
+                'gray' => Color::Slate,
+                'info' => Color::Sky,
+                'success' => Color::Emerald,
+                'warning' => Color::Amber,
+                'danger' => Color::Rose,
             ])
+            ->databaseNotifications()
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => view('filament.components.pwa-head')->render() . view('filament.components.crm-theme')->render(),
+            )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
-                Pages\Dashboard::class,
+                \App\Filament\Pages\Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
