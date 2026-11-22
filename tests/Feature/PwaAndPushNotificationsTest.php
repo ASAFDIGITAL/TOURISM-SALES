@@ -58,7 +58,7 @@ class PwaAndPushNotificationsTest extends TestCase
 
         $response = $this->actingAs($agent)->get('/agent/mobile-app-notifications');
         $response->assertOk();
-        $response->assertSee('manifest.webmanifest', false);
+        $response->assertSee('manifest.json', false);
         $response->assertSee('/sw.js', false);
     }
 
