@@ -46,18 +46,12 @@
             </div>
         </x-filament::section>
 
-        {{-- Choose Plan & Activate PayPlus Recurring Standing Order --}}
+        {{-- Choose Plan & Activate Subscription --}}
         <x-filament::section>
             <x-slot name="heading">{{ __('ui.payplus_activate_standing_order_heading') }}</x-slot>
             <x-slot name="description">
                 {{ __('ui.payplus_activate_standing_order_desc', ['vat' => $vatRate]) }}
             </x-slot>
-
-            @if (! $payPlusConfigured)
-                <div style="margin-bottom: 16px; padding: 12px 16px; border-radius: 12px; background: rgba(245, 158, 11, 0.14); border: 1px solid rgba(245, 158, 11, 0.45); font-size: 0.86rem; font-weight: 600;">
-                    ⏳ {{ __('ui.payplus_pending_approval_banner') }}
-                </div>
-            @endif
 
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 18px;">
                 <div style="display: inline-flex; gap: 6px; padding: 4px; border-radius: 11px; background: rgba(148, 163, 184, 0.2);">
