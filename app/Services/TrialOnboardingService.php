@@ -4,8 +4,9 @@ namespace App\Services;
 
 use App\Mail\TrialOnboardingMail;
 use App\Models\Tenant;
+use App\Models\TrialEmailTemplate;
 use App\Models\User;
-use Illuminate\Support\Facades\App;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 
 class TrialOnboardingService
@@ -15,14 +16,20 @@ class TrialOnboardingService
     public const STEP_DAY_11 = 'day_11';
     public const STEP_DAY_13 = 'day_13';
 
-    public function sendStepIfNeeded(Tenant $tenant, string $step): bool
+    public function sendStepIfNeeded(Tenant $tenant, string $step, bool $force = false): bool
     {
-        if (! $tenant->is_trial || $tenant->status !== 'active') {
+        if (! $force && (! $tenant->is_trial || $tenant->status !== 'active')) {
+            return false;
+        }
+
+        TrialEmailTemplate::ensureDefaultsExist();
+        $template = TrialEmailTemplate::where('step', $step)->first();
+        if (! $template || (! $force && ! $template->is_active)) {
             return false;
         }
 
         $sentSteps = is_array($tenant->trial_drip_steps_sent) ? $tenant->trial_drip_steps_sent : [];
-        if (in_array($step, $sentSteps, true)) {
+        if (! $force && in_array($step, $sentSteps, true)) {
             return false;
         }
 
@@ -32,15 +39,54 @@ class TrialOnboardingService
         }
 
         $locale = in_array($tenant->language, ['he', 'ar', 'en'], true) ? $tenant->language : 'he';
-        $originalLocale = App::getLocale();
-        App::setLocale($locale);
+        $payload = $template->renderForTenant($tenant, $locale);
 
-        try {
-            $payload = $this->buildStepContent($tenant, $step);
+        Mail::to($recipientEmail)->send(new TrialOnboardingMail(
+            tenant: $tenant,
+            step: $step,
+            subjectLine: $payload['subject'],
+            heading: $payload['heading'],
+            introText: $payload['intro'],
+            highlights: $payload['highlights'],
+            ctaLabel: $payload['cta_label'],
+            ctaUrl: $payload['cta_url'],
+            localeCode: $locale,
+        ));
 
-            Mail::to($recipientEmail)->send(new TrialOnboardingMail(
-                tenant: $tenant,
-                step: $step,
+        $sentSteps[] = $step;
+        $tenant->forceFill([
+            'trial_drip_steps_sent' => array_values(array_unique($sentSteps)),
+        ])->save();
+
+        $template->forceFill([
+            'sent_count' => (int) $template->sent_count + 1,
+            'last_sent_at' => now(),
+        ])->save();
+
+        return true;
+    }
+
+    /**
+     * Manually send an editable Trial Drip template to selected tenants or a test email.
+     *
+     * @param  Collection<int, Tenant>  $tenants
+     */
+    public function sendTemplateManually(
+        TrialEmailTemplate $template,
+        Collection $tenants,
+        ?string $testEmail = null,
+        ?string $testLocale = null,
+    ): int {
+        $sent = 0;
+
+        if (filled($testEmail) && filter_var(trim($testEmail), FILTER_VALIDATE_EMAIL)) {
+            $locale = in_array($testLocale, ['he', 'ar', 'en'], true) ? $testLocale : 'he';
+            $dummyTenant = $tenants->first() ?? new Tenant(['name' => 'Demo Agency', 'language' => $locale]);
+            $payload = $template->renderForTenant($dummyTenant, $locale);
+
+            Mail::to(trim($testEmail))->send(new TrialOnboardingMail(
+                tenant: $dummyTenant,
+                step: $template->step,
                 subjectLine: $payload['subject'],
                 heading: $payload['heading'],
                 introText: $payload['intro'],
@@ -50,19 +96,30 @@ class TrialOnboardingService
                 localeCode: $locale,
             ));
 
-            $sentSteps[] = $step;
-            $tenant->forceFill([
-                'trial_drip_steps_sent' => array_values(array_unique($sentSteps)),
+            $template->forceFill([
+                'sent_count' => (int) $template->sent_count + 1,
+                'last_sent_at' => now(),
             ])->save();
 
-            return true;
-        } finally {
-            App::setLocale($originalLocale);
+            return 1;
         }
+
+        foreach ($tenants as $tenant) {
+            try {
+                if ($this->sendStepIfNeeded($tenant, $template->step, force: true)) {
+                    $sent++;
+                }
+            } catch (\Throwable) {
+            }
+        }
+
+        return $sent;
     }
 
     public function processAllTrialTenants(): int
     {
+        TrialEmailTemplate::ensureDefaultsExist();
+
         $tenants = Tenant::with('plan')
             ->where('status', 'active')
             ->where('is_trial', true)
@@ -110,70 +167,5 @@ class TrialOnboardingService
             ->first();
 
         return ($owner && filter_var($owner->email, FILTER_VALIDATE_EMAIL)) ? $owner->email : null;
-    }
-
-    /**
-     * @return array{subject: string, heading: string, intro: string, highlights: array<int, string>, cta_label: string, cta_url: string}
-     */
-    private function buildStepContent(Tenant $tenant, string $step): array
-    {
-        $baseUrl = rtrim((string) config('app.url', 'https://tourism.asafdigital.com'), '/');
-        $tripsCount = $tenant->trips()->count();
-        $customersCount = $tenant->customers()->count();
-        $daysLeft = $tenant->getTrialDaysLeft();
-        $planName = $tenant->plan?->getLocalizedName() ?? 'Pro';
-
-        return match ($step) {
-            self::STEP_DAY_0 => [
-                'subject' => __('ui.drip_day0_subject', ['agency' => $tenant->name]),
-                'heading' => __('ui.drip_day0_heading', ['agency' => $tenant->name]),
-                'intro' => __('ui.drip_day0_intro', ['days' => max(1, $daysLeft ?: 14), 'plan' => $planName]),
-                'highlights' => [
-                    __('ui.drip_day0_h1'),
-                    __('ui.drip_day0_h2'),
-                    __('ui.drip_day0_h3'),
-                ],
-                'cta_label' => __('ui.drip_day0_cta'),
-                'cta_url' => $baseUrl . '/agent',
-            ],
-            self::STEP_DAY_7 => [
-                'subject' => __('ui.drip_day7_subject', ['agency' => $tenant->name]),
-                'heading' => __('ui.drip_day7_heading'),
-                'intro' => __('ui.drip_day7_intro', [
-                    'trips' => $tripsCount,
-                    'customers' => $customersCount,
-                    'days' => $daysLeft,
-                ]),
-                'highlights' => [
-                    __('ui.drip_day7_h1'),
-                    __('ui.drip_day7_h2'),
-                    __('ui.drip_day7_h3'),
-                ],
-                'cta_label' => __('ui.drip_day7_cta'),
-                'cta_url' => $baseUrl . '/agent/reminder-rules',
-            ],
-            self::STEP_DAY_11 => [
-                'subject' => __('ui.drip_day11_subject', ['days' => max(1, $daysLeft)]),
-                'heading' => __('ui.drip_day11_heading', ['days' => max(1, $daysLeft)]),
-                'intro' => __('ui.drip_day11_intro', ['agency' => $tenant->name, 'plan' => $planName]),
-                'highlights' => [
-                    __('ui.drip_day11_h1'),
-                    __('ui.drip_day11_h2'),
-                ],
-                'cta_label' => __('ui.drip_upgrade_cta'),
-                'cta_url' => $baseUrl . '/agent/billing-and-invoices',
-            ],
-            default => [
-                'subject' => __('ui.drip_day13_subject'),
-                'heading' => __('ui.drip_day13_heading'),
-                'intro' => __('ui.drip_day13_intro', ['agency' => $tenant->name]),
-                'highlights' => [
-                    __('ui.drip_day13_h1'),
-                    __('ui.drip_day13_h2'),
-                ],
-                'cta_label' => __('ui.drip_upgrade_cta'),
-                'cta_url' => $baseUrl . '/agent/billing-and-invoices',
-            ],
-        };
     }
 }

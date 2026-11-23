@@ -152,4 +152,52 @@ class SaasGrowthFeaturesTest extends TestCase
         $this->assertNotNull($trip->quote_approved_at);
         $this->assertSame(1, $owner->notifications()->count());
     }
+
+    public function test_admin_can_edit_trial_templates_send_manually_and_broadcast_updates(): void
+    {
+        Mail::fake();
+        \App\Models\TrialEmailTemplate::ensureDefaultsExist();
+
+        $template = \App\Models\TrialEmailTemplate::where('step', 'day_0')->firstOrFail();
+        $template->update([
+            'subject_he' => 'נושא מותאם אישית עבור {agency}',
+            'heading_he' => 'כותרת מותאמת!',
+        ]);
+
+        $tenant = Tenant::create([
+            'name' => 'Custom Mail Agency',
+            'email' => 'custom@agency.test',
+            'status' => 'active',
+            'is_trial' => true,
+            'trial_ends_at' => now()->addDays(10),
+            'language' => 'he',
+        ]);
+
+        // Manual send uses admin's customized subject/heading
+        $sent = app(TrialOnboardingService::class)->sendTemplateManually($template, collect([$tenant]));
+        $this->assertSame(1, $sent);
+        $this->assertSame(1, $template->fresh()->sent_count);
+
+        Mail::assertSent(TrialOnboardingMail::class, function (TrialOnboardingMail $mail) {
+            return $mail->subjectLine === 'נושא מותאם אישית עבור Custom Mail Agency'
+                && $mail->heading === 'כותרת מותאמת!';
+        });
+
+        // Test email mode works without requiring a tenant
+        $testSent = app(TrialOnboardingService::class)->sendTemplateManually($template, collect(), 'qa@asafdigital.com', 'he');
+        $this->assertSame(1, $testSent);
+
+        // Admin trial email templates page renders cleanly
+        $admin = User::create([
+            'name' => 'Boss Admin',
+            'email' => 'boss@templates.test',
+            'password' => Hash::make('password123'),
+            'role' => 'super_admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->get('/admin/trial-email-templates')
+            ->assertOk()
+            ->assertSee('נושא מותאם אישית עבור {agency}');
+    }
 }

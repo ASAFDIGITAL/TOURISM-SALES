@@ -40,9 +40,14 @@ class SendAdminNotificationAction
             ->modalSubmitActionLabel(__('ui.send_now'))
             ->form(self::getFormSchema(includeAudiencePicker: true))
             ->action(function (array $data): void {
-                $tenants = ($data['audience'] ?? 'all') === 'selected'
-                    ? Tenant::whereIn('id', (array) ($data['tenant_ids'] ?? []))->get()
-                    : Tenant::where('status', 'active')->get();
+                $audience = (string) ($data['audience'] ?? 'all');
+                $tenants = match ($audience) {
+                    'selected' => Tenant::whereIn('id', (array) ($data['tenant_ids'] ?? []))->get(),
+                    'trial' => Tenant::where('status', 'active')->where('is_trial', true)->get(),
+                    'paid' => Tenant::where('status', 'active')->where('is_trial', false)->get(),
+                    'by_plan' => Tenant::where('status', 'active')->where('plan_id', $data['plan_id'] ?? 0)->get(),
+                    default => Tenant::where('status', 'active')->get(),
+                };
 
                 self::dispatchNotifications($tenants, $data);
             });
@@ -60,12 +65,21 @@ class SendAdminNotificationAction
                 ->label(__('ui.send_to_label'))
                 ->options([
                     'all' => __('ui.all_active_agents'),
+                    'trial' => __('ui.tab_on_trial'),
+                    'paid' => __('ui.paid_agencies_only'),
+                    'by_plan' => __('ui.by_plan_option'),
                     'selected' => __('ui.specific_agents'),
                 ])
                 ->default('all')
-                ->inline()
+                ->columns(2)
                 ->live()
                 ->required();
+
+            $schema[] = Forms\Components\Select::make('plan_id')
+                ->label(__('ui.plan'))
+                ->options(fn (): array => \App\Models\Plan::query()->orderBy('sort_order')->pluck('name_he', 'id')->all())
+                ->visible(fn (Get $get): bool => $get('audience') === 'by_plan')
+                ->required(fn (Get $get): bool => $get('audience') === 'by_plan');
 
             $schema[] = Forms\Components\Select::make('tenant_ids')
                 ->label(__('ui.select_agents'))
@@ -181,7 +195,8 @@ class SendAdminNotificationAction
                     if ($phoneKey && ! isset($sentPhones[$phoneKey])) {
                         $sentPhones[$phoneKey] = true;
                         try {
-                            if ($smsService->sendSms((string) $user->phone, "{$title}\n{$body}")) {
+                            $res = $smsService->sendSms((string) $user->phone, "{$title}\n{$body}");
+                            if ((is_array($res) && ! empty($res['success'])) || $res === true) {
                                 $smsCount++;
                             }
                         } catch (\Throwable) {
@@ -194,9 +209,17 @@ class SendAdminNotificationAction
                     if (! isset($sentEmails[$emailKey])) {
                         $sentEmails[$emailKey] = true;
                         try {
-                            Mail::raw("{$title}\n\n{$body}", function ($msg) use ($emailKey, $title) {
-                                $msg->to($emailKey)->subject($title);
-                            });
+                            Mail::to($emailKey)->send(new \App\Mail\TrialOnboardingMail(
+                                tenant: $tenant,
+                                step: 'broadcast',
+                                subjectLine: $title,
+                                heading: $title,
+                                introText: $body,
+                                highlights: [],
+                                ctaLabel: __('ui.drip_day0_cta'),
+                                ctaUrl: rtrim((string) config('app.url', 'https://tourism.asafdigital.com'), '/') . '/agent',
+                                localeCode: in_array($user->language, ['he', 'ar', 'en'], true) ? $user->language : ($tenant->language ?: 'he'),
+                            ));
                             $emailCount++;
                         } catch (\Throwable) {
                         }
@@ -210,7 +233,8 @@ class SendAdminNotificationAction
                 if ($phoneKey && ! isset($sentPhones[$phoneKey])) {
                     $sentPhones[$phoneKey] = true;
                     try {
-                        if ($smsService->sendSms((string) $tenant->phone, "{$title}\n{$body}")) {
+                        $res = $smsService->sendSms((string) $tenant->phone, "{$title}\n{$body}");
+                        if ((is_array($res) && ! empty($res['success'])) || $res === true) {
                             $smsCount++;
                         }
                     } catch (\Throwable) {
@@ -223,9 +247,17 @@ class SendAdminNotificationAction
                 if (! isset($sentEmails[$emailKey])) {
                     $sentEmails[$emailKey] = true;
                     try {
-                        Mail::raw("{$title}\n\n{$body}", function ($msg) use ($emailKey, $title) {
-                            $msg->to($emailKey)->subject($title);
-                        });
+                        Mail::to($emailKey)->send(new \App\Mail\TrialOnboardingMail(
+                            tenant: $tenant,
+                            step: 'broadcast',
+                            subjectLine: $title,
+                            heading: $title,
+                            introText: $body,
+                            highlights: [],
+                            ctaLabel: __('ui.drip_day0_cta'),
+                            ctaUrl: rtrim((string) config('app.url', 'https://tourism.asafdigital.com'), '/') . '/agent',
+                            localeCode: in_array($tenant->language, ['he', 'ar', 'en'], true) ? $tenant->language : 'he',
+                        ));
                         $emailCount++;
                     } catch (\Throwable) {
                     }
