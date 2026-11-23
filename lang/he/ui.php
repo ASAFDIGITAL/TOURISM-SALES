@@ -898,4 +898,6 @@ return [
     'never_logged_in' => 'טרם התחברו',
     'admin_inactive_wa_checkin' => 'שלום :agency, ראינו שלא התחברתם למערכת בשבוע האחרון — הכל בסדר? צריכים עזרה במשהו?',
     'all_agencies_active_recently' => 'מעולה! כל הסוכנויות הפעילות התחברו בשבוע האחרון.',
+    'paid_amount' => 'שולם עד כה',
+    'rooms' => 'חדרים',
 ];

@@ -898,4 +898,6 @@ return [
     'never_logged_in' => 'Never logged in',
     'admin_inactive_wa_checkin' => 'Hi :agency, we noticed you haven\'t logged in over the past week — need any help with the CRM?',
     'all_agencies_active_recently' => 'Great! All active agencies have logged in within the past 7 days.',
+    'paid_amount' => 'Paid So Far',
+    'rooms' => 'Rooms',
 ];
