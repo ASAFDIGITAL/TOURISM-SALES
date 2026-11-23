@@ -23,6 +23,21 @@
                         class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500"
                     />
                 </div>
+
+                <div class="w-full md:w-1/3">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        {{ __('ui.method') }}
+                    </label>
+                    <select
+                        wire:model.live="paymentMethod"
+                        class="w-full rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    >
+                        <option value="">{{ __('ui.all_payment_methods') }}</option>
+                        @foreach ($this->getPaymentMethodOptions() as $methodKey => $methodLabel)
+                            <option value="{{ $methodKey }}">{{ $methodLabel }}</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
         </x-filament::section>
 
@@ -91,6 +106,30 @@
                 </div>
             </x-filament::section>
         </div>
+
+        @php
+            $methodBreakdown = $this->getPaymentMethodBreakdown();
+        @endphp
+
+        <x-filament::section>
+            <x-slot name="heading">{{ __('ui.breakdown_by_payment_method') }}</x-slot>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px;">
+                @foreach ($methodBreakdown as $mb)
+                    @php $isSelected = $paymentMethod === $mb['key']; @endphp
+                    <button
+                        type="button"
+                        wire:click="setPaymentMethod('{{ $mb['key'] }}')"
+                        style="text-align: start; padding: 12px 14px; border-radius: 12px; cursor: pointer; transition: all 0.15s ease; border: {{ $isSelected ? '2px solid #f59e0b' : '1px solid rgba(148, 163, 184, 0.28)' }}; background: {{ $isSelected ? 'rgba(245, 158, 11, 0.12)' : 'rgba(148, 163, 184, 0.06)' }};"
+                    >
+                        <div style="font-size: 0.78rem; color: #64748b; font-weight: 700;">{{ $mb['label'] }}</div>
+                        <div style="font-size: 1.15rem; font-weight: 800; margin-top: 3px;">{{ $mb['amount'] }}</div>
+                        <div style="font-size: 0.74rem; color: #64748b; margin-top: 2px;">
+                            {{ __('ui.payments_count_short', ['count' => $mb['count']]) }}
+                        </div>
+                    </button>
+                @endforeach
+            </div>
+        </x-filament::section>
 
         @php
             $employeeRows = $this->getEmployeePerformance();

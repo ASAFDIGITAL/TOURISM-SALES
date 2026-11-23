@@ -900,4 +900,7 @@ return [
     'all_agencies_active_recently' => 'מעולה! כל הסוכנויות הפעילות התחברו בשבוע האחרון.',
     'paid_amount' => 'שולם עד כה',
     'rooms' => 'חדרים',
+    'all_payment_methods' => 'כל שיטות התשלום',
+    'breakdown_by_payment_method' => 'פילוח גבייה לפי שיטת תשלום (לחץ לסינון)',
+    'payments_count_short' => ':count תשלומים',
 ];

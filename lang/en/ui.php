@@ -900,4 +900,7 @@ return [
     'all_agencies_active_recently' => 'Great! All active agencies have logged in within the past 7 days.',
     'paid_amount' => 'Paid So Far',
     'rooms' => 'Rooms',
+    'all_payment_methods' => 'All Payment Methods',
+    'breakdown_by_payment_method' => 'Collection Breakdown by Payment Method (Click to Filter)',
+    'payments_count_short' => ':count payments',
 ];

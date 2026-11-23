@@ -898,4 +898,7 @@ return [
     'all_agencies_active_recently' => 'ممتاز! جميع الوكالات النشطة استخدمت النظام هذا الأسبوع.',
     'paid_amount' => 'المدفوع حتى الآن',
     'rooms' => 'غرف',
+    'all_payment_methods' => 'جميع طرق الدفع',
+    'breakdown_by_payment_method' => 'توزيع التحصيل حسب طريقة الدفع (اضغط للتصفية)',
+    'payments_count_short' => ':count دفعات',
 ];

@@ -23,6 +23,74 @@ class SalesReports extends Page implements HasTable
 
     public ?string $fromDate = null;
     public ?string $toDate = null;
+    public ?string $paymentMethod = '';
+
+    public function updatedPaymentMethod(): void
+    {
+        $this->resetTable();
+    }
+
+    public function setPaymentMethod(string $method): void
+    {
+        $this->paymentMethod = ($this->paymentMethod === $method) ? '' : $method;
+        $this->resetTable();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function getPaymentMethodOptions(): array
+    {
+        return [
+            'credit' => __('ui.credit'),
+            'cash' => __('ui.cash'),
+            'transfer' => __('ui.transfer'),
+            'check' => __('ui.check'),
+        ];
+    }
+
+    /**
+     * Breakdown of collected payments by payment method for the selected date range.
+     *
+     * @return array<int, array{key: string, label: string, amount: string, amount_raw: float, count: int}>
+     */
+    public function getPaymentMethodBreakdown(): array
+    {
+        $tenantId = Auth::user()->getActiveTenantId();
+        $currency = Auth::user()->getActiveTenant()?->currency ?? 'ILS';
+        $symbol = match ($currency) {
+            'ILS' => '₪',
+            'EUR' => '€',
+            'GBP' => '£',
+            default => '$',
+        };
+
+        $rows = Payment::query()
+            ->where('tenant_id', $tenantId)
+            ->when($this->fromDate, fn ($q) => $q->whereDate('paid_at', '>=', $this->fromDate))
+            ->when($this->toDate, fn ($q) => $q->whereDate('paid_at', '<=', $this->toDate))
+            ->selectRaw('method, COUNT(*) as payments_count, SUM(amount) as total_amount')
+            ->groupBy('method')
+            ->get()
+            ->keyBy('method');
+
+        $result = [];
+        foreach ($this->getPaymentMethodOptions() as $key => $label) {
+            $row = $rows->get($key);
+            $amt = (float) ($row?->total_amount ?? 0);
+            $cnt = (int) ($row?->payments_count ?? 0);
+
+            $result[] = [
+                'key' => $key,
+                'label' => $label,
+                'amount_raw' => $amt,
+                'amount' => $symbol . number_format($amt, 2),
+                'count' => $cnt,
+            ];
+        }
+
+        return $result;
+    }
 
     public static function getNavigationLabel(): string
     {
@@ -61,6 +129,7 @@ class SalesReports extends Page implements HasTable
             ->where('tenant_id', $tenantId)
             ->when($this->fromDate, fn ($q) => $q->whereDate('created_at', '>=', $this->fromDate))
             ->when($this->toDate, fn ($q) => $q->whereDate('created_at', '<=', $this->toDate))
+            ->when(filled($this->paymentMethod), fn ($q) => $q->whereHas('payments', fn ($p) => $p->where('method', $this->paymentMethod)))
             ->where('status', '!=', 'cancelled')
             ->get();
 
@@ -72,7 +141,14 @@ class SalesReports extends Page implements HasTable
             $sales = (float) $userTrips->sum('total_amount');
             $cost = (float) $userTrips->sum('supplier_cost');
             $profit = round($sales - $cost, 2);
-            $collected = (float) $userTrips->sum(fn (Trip $t) => (float) $t->payments->sum('amount'));
+            $collected = (float) $userTrips->sum(function (Trip $t) {
+                $payments = $t->payments;
+                if (filled($this->paymentMethod)) {
+                    $payments = $payments->where('method', $this->paymentMethod);
+                }
+
+                return (float) $payments->sum('amount');
+            });
             $balance = max(0, $sales - $collected);
             $rate = $sales > 0 ? (int) min(100, round(($collected / $sales) * 100)) : 100;
 
@@ -126,13 +202,15 @@ class SalesReports extends Page implements HasTable
             ->where('tenant_id', $tenantId)
             ->when($this->fromDate, fn ($q) => $q->whereDate('created_at', '>=', $this->fromDate))
             ->when($this->toDate, fn ($q) => $q->whereDate('created_at', '<=', $this->toDate))
+            ->when(filled($this->paymentMethod), fn ($q) => $q->whereHas('payments', fn ($p) => $p->where('method', $this->paymentMethod)))
             ->where('status', '!=', 'cancelled')
             ->orderByDesc('created_at')
             ->get();
 
         $revenueQuery = Payment::where('tenant_id', $tenantId)
             ->when($this->fromDate, fn ($q) => $q->whereDate('paid_at', '>=', $this->fromDate))
-            ->when($this->toDate, fn ($q) => $q->whereDate('paid_at', '<=', $this->toDate));
+            ->when($this->toDate, fn ($q) => $q->whereDate('paid_at', '<=', $this->toDate))
+            ->when(filled($this->paymentMethod), fn ($q) => $q->where('method', $this->paymentMethod));
 
         $totalRevenue = (float) $revenueQuery->sum('amount');
         $totalSales = (float) $trips->sum('total_amount');
@@ -168,11 +246,12 @@ class SalesReports extends Page implements HasTable
             ->where('tenant_id', $tenantId)
             ->when($this->fromDate, fn ($q) => $q->whereDate('created_at', '>=', $this->fromDate))
             ->when($this->toDate, fn ($q) => $q->whereDate('created_at', '<=', $this->toDate))
+            ->when(filled($this->paymentMethod), fn ($q) => $q->whereHas('payments', fn ($p) => $p->where('method', $this->paymentMethod)))
             ->where('status', '!=', 'cancelled')
             ->orderByDesc('created_at')
             ->get();
 
-        $suffix = ($this->fromDate ?: 'all') . '_' . ($this->toDate ?: 'all');
+        $suffix = ($this->fromDate ?: 'all') . '_' . ($this->toDate ?: 'all') . (filled($this->paymentMethod) ? '_' . $this->paymentMethod : '');
 
         return response()->streamDownload(function () use ($trips) {
             $out = fopen('php://output', 'w');
@@ -190,6 +269,7 @@ class SalesReports extends Page implements HasTable
                 __('ui.supplier_cost'),
                 __('ui.net_profit'),
                 __('ui.paid'),
+                __('ui.method'),
                 __('ui.balance'),
                 __('ui.status'),
             ]);
@@ -198,6 +278,9 @@ class SalesReports extends Page implements HasTable
                 $paid = (float) $trip->payments->sum('amount');
                 $total = (float) $trip->total_amount;
                 $cost = (float) $trip->supplier_cost;
+                $methods = $trip->payments->pluck('method')->filter()->unique()
+                    ->map(fn ($m) => __("ui.{$m}"))
+                    ->implode(' + ');
                 fputcsv($out, [
                     $trip->customer?->name ?? '',
                     $trip->title,
@@ -209,6 +292,7 @@ class SalesReports extends Page implements HasTable
                     number_format($cost, 2, '.', ''),
                     number_format($total - $cost, 2, '.', ''),
                     number_format($paid, 2, '.', ''),
+                    $methods,
                     number_format($total - $paid, 2, '.', ''),
                     __("ui.{$trip->status}"),
                 ]);
@@ -231,7 +315,7 @@ class SalesReports extends Page implements HasTable
             default => '$',
         };
 
-        // Total Revenue (Payments Collected) - filtered by Payment Date (Cash Flow)
+        // Total Revenue (Payments Collected) - filtered by Payment Date (Cash Flow) & optional Method
         $revenueQuery = Payment::where('tenant_id', $tenantId);
         if ($this->fromDate) {
             $revenueQuery->whereDate('paid_at', '>=', $this->fromDate);
@@ -239,15 +323,21 @@ class SalesReports extends Page implements HasTable
         if ($this->toDate) {
             $revenueQuery->whereDate('paid_at', '<=', $this->toDate);
         }
+        if (filled($this->paymentMethod)) {
+            $revenueQuery->where('method', $this->paymentMethod);
+        }
         $totalRevenue = $revenueQuery->sum('amount');
 
-        // Total Sales (Trip Total Amounts) - filtered by CREATED AT (Booking Date)
+        // Total Sales (Trip Total Amounts) - filtered by CREATED AT (Booking Date) & optional Method
         $salesQuery = Trip::where('tenant_id', $tenantId);
         if ($this->fromDate) {
             $salesQuery->whereDate('created_at', '>=', $this->fromDate);
         }
         if ($this->toDate) {
             $salesQuery->whereDate('created_at', '<=', $this->toDate);
+        }
+        if (filled($this->paymentMethod)) {
+            $salesQuery->whereHas('payments', fn ($p) => $p->where('method', $this->paymentMethod));
         }
         $salesQuery->where('status', '!=', 'cancelled');
         
@@ -271,9 +361,11 @@ class SalesReports extends Page implements HasTable
     {
         return $table
             ->query(
-                Trip::where('tenant_id', Auth::user()->getActiveTenantId())
+                Trip::with('payments')
+                    ->where('tenant_id', Auth::user()->getActiveTenantId())
                     ->when($this->fromDate, fn ($query) => $query->whereDate('created_at', '>=', $this->fromDate))
                     ->when($this->toDate, fn ($query) => $query->whereDate('created_at', '<=', $this->toDate))
+                    ->when(filled($this->paymentMethod), fn ($query) => $query->whereHas('payments', fn ($p) => $p->where('method', $this->paymentMethod)))
                     ->where('status', '!=', 'cancelled')
             )
             ->columns([
@@ -309,6 +401,18 @@ class SalesReports extends Page implements HasTable
                     ->label(__('ui.paid'))
                     ->getStateUsing(fn (Trip $record) => $record->payments->sum('amount'))
                     ->formatStateUsing(fn ($state) => $this->formatMoney($state)),
+                Tables\Columns\TextColumn::make('payment_methods')
+                    ->label(__('ui.method'))
+                    ->getStateUsing(function (Trip $record): string {
+                        $methods = $record->payments->pluck('method')->filter()->unique()
+                            ->map(fn ($m) => __("ui.{$m}"))
+                            ->values()
+                            ->all();
+
+                        return count($methods) > 0 ? implode(' + ', $methods) : '-';
+                    })
+                    ->badge()
+                    ->color('info'),
                 Tables\Columns\TextColumn::make('balance')
                     ->label(__('ui.balance'))
                     ->getStateUsing(fn (Trip $record) => $record->total_amount - $record->payments->sum('amount'))
