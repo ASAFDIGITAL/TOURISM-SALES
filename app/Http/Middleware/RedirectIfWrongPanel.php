@@ -36,10 +36,18 @@ class RedirectIfWrongPanel
             }
 
             if ($user->tenant && $user->tenant->isTrialExpired()) {
-                auth()->logout();
-                return redirect('/agent/login')->withErrors([
-                    'email' => __('ui.trial_expired_message'),
-                ]);
+                if ($panel->getId() === 'admin') {
+                    return redirect('/agent/billing-and-invoices');
+                }
+
+                $targetPath = $user->isAgencyOwner() ? 'agent/billing-and-invoices' : 'agent';
+                $isAllowedPath = $request->is($targetPath)
+                    || $request->is('agent/logout')
+                    || $request->is('livewire/*');
+
+                if (! $isAllowedPath) {
+                    return redirect('/' . $targetPath);
+                }
             }
 
             if ($panel->getId() === 'admin') {

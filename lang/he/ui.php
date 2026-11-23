@@ -774,4 +774,12 @@ return [
     'upay_urls_helper' => 'ב-UPay הגדר: קישור לדף החזרה = https://tourism.asafdigital.com/billing/upay/return | קישור לעדכון שרת = https://tourism.asafdigital.com/webhooks/upay',
     'payment_provider' => 'ספק סליקה',
     'reset_extra_seats_for_card_payment' => 'או אפס עובדים נוספים לתשלום מיידי באשראי',
+    'trial_paywall_badge' => 'תקופת הניסיון הסתיימה',
+    'trial_paywall_title' => 'תקופת הניסיון החינמית שלך הסתיימה',
+    'trial_paywall_desc_owner' => 'כל הנתונים שלך (לקוחות, טיולים וקבלות) שמורים ומאובטחים. בחר חבילה והפעל מנוי כדי לפתוח מחדש את המערכת מיד.',
+    'trial_paywall_desc_staff' => 'תקופת הניסיון של הסוכנות הסתיימה. הגישה למערכת תיפתח מיד לאחר הפעלת המנוי.',
+    'trial_paywall_staff_contact_owner' => 'יש לפנות לבעל הסוכנות להסדרת התשלום והפעלת המנוי.',
+    'trial_paywall_need_help' => 'צריך עזרה? דבר איתנו בוואטסאפ',
+    'trial_paywall_already_paid_refresh' => 'כבר שילמתי — רענן מערכת',
+    'trial_paywall_logout' => 'התנתק מהחשבון',
 ];

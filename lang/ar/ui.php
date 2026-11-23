@@ -772,4 +772,12 @@ return [
     'upay_urls_helper' => 'في UPay ضع رابط العودة: https://tourism.asafdigital.com/billing/upay/return ورابط تحديث الخادم: https://tourism.asafdigital.com/webhooks/upay',
     'payment_provider' => 'بوابة الدفع',
     'reset_extra_seats_for_card_payment' => 'أو صفّر الموظفين الإضافيين للدفع الفوري بالبطاقة',
+    'trial_paywall_badge' => 'انتهت الفترة التجريبية',
+    'trial_paywall_title' => 'انتهت فترتك التجريبية المجانية',
+    'trial_paywall_desc_owner' => 'جميع بياناتك (العملاء، الرحلات والفواتير) محفوظة بأمان. اختر الباقة المناسبة وفعّل الاشتراك لفتح النظام فوراً.',
+    'trial_paywall_desc_staff' => 'انتهت الفترة التجريبية للوكالة. سيتم فتح الوصول للنظام فور تفعيل الاشتراك.',
+    'trial_paywall_staff_contact_owner' => 'يرجى التواصل مع صاحب الوكالة لتفعيل الاشتراك.',
+    'trial_paywall_need_help' => 'تحتاج مساعدة؟ تواصل معنا عبر واتساب',
+    'trial_paywall_already_paid_refresh' => 'لقد دفعت بالفعل — تحديث',
+    'trial_paywall_logout' => 'تسجيل الخروج',
 ];

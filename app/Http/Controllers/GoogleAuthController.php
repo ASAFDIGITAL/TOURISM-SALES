@@ -113,16 +113,14 @@ class GoogleAuthController extends Controller
                         'email' => __('ui.suspended_message'),
                     ]);
                 }
-
-                if ($user->tenant->isTrialExpired()) {
-                    return redirect('/agent/login')->withErrors([
-                        'email' => __('ui.trial_expired_message'),
-                    ]);
-                }
             }
 
             Auth::login($user, remember: true);
             $request->session()->regenerate();
+
+            if ($user->role === 'agent' && $user->tenant?->isTrialExpired()) {
+                return redirect($user->isAgencyOwner() ? '/agent/billing-and-invoices' : '/agent');
+            }
 
             return redirect($user->isSuperAdmin() ? '/admin' : '/agent');
         }

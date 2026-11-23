@@ -64,7 +64,8 @@ class AgentPanelProvider extends PanelProvider
             )
             ->renderHook(
                 PanelsRenderHook::BODY_END,
-                fn (): string => view('filament.agent.components.support-floating-widget')->render(),
+                fn (): string => view('filament.agent.components.support-floating-widget')->render()
+                    . view('filament.agent.components.trial-expired-paywall')->render(),
             )
             ->discoverResources(in: app_path('Filament/Agent/Resources'), for: 'App\\Filament\\Agent\\Resources')
             ->discoverPages(in: app_path('Filament/Agent/Pages'), for: 'App\\Filament\\Agent\\Pages')

@@ -202,9 +202,15 @@ class PlansTeamAndLandingTest extends TestCase
 
     public function test_expired_trial_tenant_is_blocked_from_agent_panel(): void
     {
+        Plan::ensureDefaultPlansExist();
+        $pro = Plan::where('slug', 'pro')->firstOrFail();
+        $pro->update(['upay_monthly_url' => 'https://app.upay.co.il/API6/s.php?m=PAYWALLPRO']);
+
         $tenant = Tenant::create([
             'name' => 'Expired Trial',
+            'email' => 'expired@trial.test',
             'status' => 'active',
+            'plan_id' => $pro->id,
             'is_trial' => true,
             'trial_ends_at' => now()->subDay(),
         ]);
@@ -218,9 +224,30 @@ class PlansTeamAndLandingTest extends TestCase
             'tenant_id' => $tenant->id,
         ]);
 
+        // Visiting /agent or /agent/trips redirects to billing paywall
         $this->actingAs($owner)
             ->get('/agent')
-            ->assertRedirect('/agent/login');
+            ->assertRedirect('/agent/billing-and-invoices');
+
+        $this->actingAs($owner)
+            ->get('/agent/trips')
+            ->assertRedirect('/agent/billing-and-invoices');
+
+        // Billing page renders the non-dismissible paywall modal with payment link
+        $this->actingAs($owner)
+            ->get('/agent/billing-and-invoices')
+            ->assertOk()
+            ->assertSee('tsTrialPaywallModal')
+            ->assertSee('תקופת הניסיון החינמית שלך הסתיימה')
+            ->assertSee('https://app.upay.co.il/API6/s.php?m=PAYWALLPRO');
+
+        // Once trial is cleared after payment, paywall disappears and /agent unlocks
+        $tenant->update(['is_trial' => false, 'trial_ends_at' => null]);
+
+        $this->actingAs($owner->fresh())
+            ->get('/agent')
+            ->assertOk()
+            ->assertDontSee('tsTrialPaywallModal');
     }
 
     public function test_legal_pages_accessibility_and_cookies_work_in_all_languages(): void

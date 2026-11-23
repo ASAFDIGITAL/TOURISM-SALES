@@ -774,4 +774,12 @@ return [
     'upay_urls_helper' => 'In UPay set Return URL: https://tourism.asafdigital.com/billing/upay/return | Server Update URL: https://tourism.asafdigital.com/webhooks/upay',
     'payment_provider' => 'Provider',
     'reset_extra_seats_for_card_payment' => 'Or reset extra seats to pay instantly by card',
+    'trial_paywall_badge' => 'Trial Ended',
+    'trial_paywall_title' => 'Your Free Trial Period Has Ended',
+    'trial_paywall_desc_owner' => 'All your data (customers, trips, and receipts) is safely saved. Pick a plan and activate your subscription to unlock full access immediately.',
+    'trial_paywall_desc_staff' => 'Your agency\'s free trial has ended. Access will unlock as soon as the subscription is activated.',
+    'trial_paywall_staff_contact_owner' => 'Please contact your agency owner to activate the subscription.',
+    'trial_paywall_need_help' => 'Need help? Chat with us on WhatsApp',
+    'trial_paywall_already_paid_refresh' => 'I already paid — Refresh',
+    'trial_paywall_logout' => 'Sign Out',
 ];
