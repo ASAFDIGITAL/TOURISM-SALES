@@ -219,4 +219,84 @@ class SavedHotelsTest extends TestCase
             ->assertSee('Four Seasons Limassol')
             ->assertSee('Legacy Boutique Inn');
     }
+
+    public function test_hotels_excel_template_download_and_xlsx_csv_import(): void
+    {
+        [$tenantA, $ownerA] = $this->createAgencyAndOwner('Excel Tours', 'excel@tours.test');
+        [$tenantB, $ownerB] = $this->createAgencyAndOwner('Other Tours', 'other@tours.test');
+
+        $service = app(\App\Services\HotelSpreadsheetService::class);
+
+        // 1. Generate real .xlsx template in Hebrew, Arabic, and English
+        foreach (['he', 'ar', 'en'] as $lang) {
+            $xlsxBinary = $service->generateTemplateXlsx($lang);
+            $this->assertStringStartsWith("PK\x03\x04", $xlsxBinary);
+            $this->assertGreaterThan(1000, strlen($xlsxBinary));
+        }
+
+        // 2. Round-trip import generated Hebrew .xlsx into Tenant A
+        $tmpXlsx = tempnam(sys_get_temp_dir(), 'test_hotels_') . '.xlsx';
+        file_put_contents($tmpXlsx, $service->generateTemplateXlsx('he'));
+
+        try {
+            $firstImport = $service->importFromPath($tmpXlsx, $tenantA->id, true);
+            $this->assertSame(2, $firstImport['created']);
+            $this->assertSame(0, $firstImport['updated']);
+            $this->assertSame(0, $firstImport['skipped']);
+
+            $hilton = Hotel::withoutGlobalScopes()
+                ->where('tenant_id', $tenantA->id)
+                ->where('name', 'Hilton Athens')
+                ->first();
+            $this->assertNotNull($hilton);
+            $this->assertSame(5, $hilton->stars);
+            $this->assertSame('Booking.com', $hilton->default_supplier);
+
+            // Tenant B has zero hotels from Tenant A's import
+            $this->assertSame(0, Hotel::withoutGlobalScopes()->where('tenant_id', $tenantB->id)->count());
+
+            // 3. Re-import with updateExisting = false skips duplicates
+            $skipImport = $service->importFromPath($tmpXlsx, $tenantA->id, false);
+            $this->assertSame(0, $skipImport['created']);
+            $this->assertSame(2, $skipImport['skipped']);
+
+            // 4. Re-import with updateExisting = true updates existing records
+            $updateImport = $service->importFromPath($tmpXlsx, $tenantA->id, true);
+            $this->assertSame(0, $updateImport['created']);
+            $this->assertSame(2, $updateImport['updated']);
+        } finally {
+            @unlink($tmpXlsx);
+        }
+
+        // 5. Arabic UTF-8 BOM semicolon CSV import with star symbols
+        $tmpCsv = tempnam(sys_get_temp_dir(), 'test_hotels_') . '.csv';
+        $csvContent = "\xEF\xBB\xBF"
+            . "اسم الفندق;الوجهة / المدينة;النجوم (1-5);الهاتف;البريد الإلكتروني;العنوان;المزوّد الافتراضي;ملاحظات\n"
+            . "فندق ريتز كارلتون;دبي;★★★★★;+971-4-3994000;res@ritz.example;JBR Walk;Direct;شامل الإفطار\n";
+        file_put_contents($tmpCsv, $csvContent);
+
+        try {
+            $csvResult = $service->importFromPath($tmpCsv, $tenantB->id, true);
+            $this->assertSame(1, $csvResult['created']);
+
+            $ritz = Hotel::withoutGlobalScopes()
+                ->where('tenant_id', $tenantB->id)
+                ->where('name', 'فندق ريتز كارلتون')
+                ->first();
+            $this->assertNotNull($ritz);
+            $this->assertSame(5, $ritz->stars);
+            $this->assertSame('دبي', $ritz->destination);
+            $this->assertSame('Direct', $ritz->default_supplier);
+        } finally {
+            @unlink($tmpCsv);
+        }
+
+        // 6. Verify Filament ListHotels page shows Download & Import actions
+        $this->actingAs($ownerA);
+        Filament::setCurrentPanel(Filament::getPanel('agent'));
+
+        Livewire::test(ListHotels::class)
+            ->assertActionExists('download_excel_template')
+            ->assertActionExists('import_hotels_excel');
+    }
 }
