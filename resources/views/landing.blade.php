@@ -6,6 +6,15 @@
     <title>TOURISM-SALES — {{ __('ui.landing_meta_title') }}</title>
     <meta name="description" content="{{ __('ui.landing_meta_desc') }}">
     <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="theme-color" content="#F59E0B">
+    <meta name="apple-mobile-web-app-title" content="TOURISM-SALES">
+    <link rel="apple-touch-icon" href="{{ asset('images/apple-touch-icon.png') }}">
+    <script>
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+            window.location.replace('/agent');
+        }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     @if ($locale === 'ar')
