@@ -36,10 +36,13 @@ class SetLocaleMiddleware
             app()->setLocale($lang);
 
             if ($lang === 'ar') {
-                // Force Western Arabic numerals (0-9)
+                // Force Western Arabic numerals (0-9) across PHP, Laravel Number, and Filament
                 setlocale(LC_TIME, 'en_US.UTF-8');
                 setlocale(LC_NUMERIC, 'en_US.UTF-8');
                 setlocale(LC_MONETARY, 'en_US.UTF-8');
+                \Illuminate\Support\Number::useLocale('en');
+                \Filament\Tables\Table::$defaultNumberLocale = 'en';
+                \Filament\Infolists\Infolist::$defaultNumberLocale = 'en';
             }
         }
 
