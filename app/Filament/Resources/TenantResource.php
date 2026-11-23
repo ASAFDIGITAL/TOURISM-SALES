@@ -311,7 +311,61 @@ class TenantResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('plan_id')
+                    ->label(__('ui.plan'))
+                    ->relationship('plan', 'name_he')
+                    ->preload(),
+                Tables\Filters\SelectFilter::make('status')
+                    ->label(__('ui.status'))
+                    ->options([
+                        'active' => __('ui.active'),
+                        'suspended' => __('ui.suspended'),
+                        'closed' => __('ui.closed'),
+                    ]),
+                Tables\Filters\SelectFilter::make('renewal_state')
+                    ->label(__('ui.renewal_filter_label'))
+                    ->options([
+                        'expired' => __('ui.filter_expired_locked'),
+                        'expiring_7' => __('ui.filter_expiring_7'),
+                        'expiring_30' => __('ui.filter_expiring_30'),
+                        'trial_active' => __('ui.filter_trial_active'),
+                        'trial_expired' => __('ui.filter_trial_expired'),
+                        'lifetime' => __('ui.subscription_lifetime_short'),
+                    ])
+                    ->query(function (\Illuminate\Database\Eloquent\Builder $query, array $data): \Illuminate\Database\Eloquent\Builder {
+                        $value = $data['value'] ?? null;
+                        if (! $value) {
+                            return $query;
+                        }
+
+                        return match ($value) {
+                            'expired' => $query
+                                ->where(fn ($q) => $q->whereNull('subscription_type')->orWhere('subscription_type', '!=', 'lifetime'))
+                                ->where(function ($q) {
+                                    $q->where(fn ($t) => $t->where('is_trial', true)->whereNotNull('trial_ends_at')->where('trial_ends_at', '<', now()))
+                                        ->orWhere(fn ($e) => $e->whereNotNull('expires_at')->whereDate('expires_at', '<', now()->toDateString()));
+                                }),
+                            'expiring_7' => $query
+                                ->where(fn ($q) => $q->whereNull('subscription_type')->orWhere('subscription_type', '!=', 'lifetime'))
+                                ->whereNotNull('expires_at')
+                                ->whereDate('expires_at', '>=', now()->toDateString())
+                                ->whereDate('expires_at', '<=', now()->addDays(7)->toDateString()),
+                            'expiring_30' => $query
+                                ->where(fn ($q) => $q->whereNull('subscription_type')->orWhere('subscription_type', '!=', 'lifetime'))
+                                ->whereNotNull('expires_at')
+                                ->whereDate('expires_at', '>=', now()->toDateString())
+                                ->whereDate('expires_at', '<=', now()->addDays(30)->toDateString()),
+                            'trial_active' => $query
+                                ->where('is_trial', true)
+                                ->where(fn ($q) => $q->whereNull('trial_ends_at')->orWhere('trial_ends_at', '>=', now())),
+                            'trial_expired' => $query
+                                ->where('is_trial', true)
+                                ->whereNotNull('trial_ends_at')
+                                ->where('trial_ends_at', '<', now()),
+                            'lifetime' => $query->where('subscription_type', 'lifetime'),
+                            default => $query,
+                        };
+                    }),
             ])
             ->actions([
                 Tables\Actions\Action::make('enter_system')
