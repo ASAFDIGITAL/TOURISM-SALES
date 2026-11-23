@@ -73,6 +73,24 @@ class Tenant extends Model
         return (bool) $this->is_trial && $this->trial_ends_at !== null && $this->trial_ends_at->isPast();
     }
 
+    public function isSubscriptionExpired(): bool
+    {
+        if ($this->isLifetime() || empty($this->expires_at)) {
+            return false;
+        }
+
+        return \Carbon\Carbon::parse($this->expires_at)->endOfDay()->isPast();
+    }
+
+    public function needsPaymentPaywall(): bool
+    {
+        if ($this->isLifetime()) {
+            return false;
+        }
+
+        return $this->isTrialExpired() || $this->isSubscriptionExpired();
+    }
+
     public function getTrialDaysLeft(): int
     {
         if (! $this->isOnTrial() || ! $this->trial_ends_at) {

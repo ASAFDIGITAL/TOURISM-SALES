@@ -242,7 +242,28 @@ class PlansTeamAndLandingTest extends TestCase
             ->assertSee('https://app.upay.co.il/API6/s.php?m=PAYWALLPRO');
 
         // Once trial is cleared after payment, paywall disappears and /agent unlocks
-        $tenant->update(['is_trial' => false, 'trial_ends_at' => null]);
+        $tenant->update(['is_trial' => false, 'trial_ends_at' => null, 'expires_at' => now()->addMonth()->toDateString()]);
+
+        $this->actingAs($owner->fresh())
+            ->get('/agent')
+            ->assertOk()
+            ->assertDontSee('tsTrialPaywallModal');
+
+        // Expired paid recurring subscription ALSO triggers the non-dismissible renewal paywall
+        $tenant->update(['expires_at' => now()->subDays(5)->toDateString()]);
+
+        $this->actingAs($owner->fresh())
+            ->get('/agent/trips')
+            ->assertRedirect('/agent/billing-and-invoices');
+
+        $this->actingAs($owner->fresh())
+            ->get('/agent/billing-and-invoices')
+            ->assertOk()
+            ->assertSee('tsTrialPaywallModal')
+            ->assertSee('תוקף המנוי שלך הסתיים');
+
+        // Lifetime subscription is NEVER locked even if expires_at is in the past
+        $tenant->update(['subscription_type' => 'lifetime']);
 
         $this->actingAs($owner->fresh())
             ->get('/agent')

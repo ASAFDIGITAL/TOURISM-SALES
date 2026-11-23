@@ -782,4 +782,8 @@ return [
     'trial_paywall_need_help' => 'צריך עזרה? דבר איתנו בוואטסאפ',
     'trial_paywall_already_paid_refresh' => 'כבר שילמתי — רענן מערכת',
     'trial_paywall_logout' => 'התנתק מהחשבון',
+    'subscription_paywall_badge' => 'תוקף המנוי הסתיים',
+    'subscription_paywall_title' => 'תוקף המנוי שלך הסתיים — נדרש חידוש',
+    'subscription_paywall_desc_owner' => 'כל הנתונים שלך (לקוחות, טיולים וקבלות) שמורים ומאובטחים. חדש את המנוי בלחיצה כדי לחזור לעבודה מלאה מיד.',
+    'subscription_paywall_desc_staff' => 'תוקף המנוי של הסוכנות הסתיים. הגישה למערכת תיפתח מיד לאחר חידוש המנוי.',
 ];

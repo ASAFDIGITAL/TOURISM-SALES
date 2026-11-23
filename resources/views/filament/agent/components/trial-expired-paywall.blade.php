@@ -1,7 +1,8 @@
 @php
     $user = auth()->user();
     $tenant = $user && ! $user->isSuperAdmin() ? $user->getActiveTenant()?->load('plan') : null;
-    $showPaywall = $tenant !== null && $tenant->isTrialExpired();
+    $showPaywall = $tenant !== null && $tenant->needsPaymentPaywall();
+    $isTrialEnded = $tenant !== null && $tenant->isTrialExpired();
 @endphp
 
 @if ($showPaywall)
@@ -190,9 +191,19 @@
     <div id="tsTrialPaywallModal" role="dialog" aria-modal="true" aria-labelledby="tsPaywallTitle">
         <div class="ts-paywall-card">
             <div class="ts-paywall-head">
-                <div class="ts-paywall-pill">🔒 {{ __('ui.trial_paywall_badge') }}</div>
-                <h2 id="tsPaywallTitle">{{ __('ui.trial_paywall_title') }}</h2>
-                <p>{{ $isOwner ? __('ui.trial_paywall_desc_owner') : __('ui.trial_paywall_desc_staff') }}</p>
+                <div class="ts-paywall-pill">
+                    🔒 {{ $isTrialEnded ? __('ui.trial_paywall_badge') : __('ui.subscription_paywall_badge') }}
+                </div>
+                <h2 id="tsPaywallTitle">
+                    {{ $isTrialEnded ? __('ui.trial_paywall_title') : __('ui.subscription_paywall_title') }}
+                </h2>
+                <p>
+                    @if ($isTrialEnded)
+                        {{ $isOwner ? __('ui.trial_paywall_desc_owner') : __('ui.trial_paywall_desc_staff') }}
+                    @else
+                        {{ $isOwner ? __('ui.subscription_paywall_desc_owner') : __('ui.subscription_paywall_desc_staff') }}
+                    @endif
+                </p>
             </div>
 
             <div class="ts-paywall-body">

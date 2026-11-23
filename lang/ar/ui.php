@@ -780,4 +780,8 @@ return [
     'trial_paywall_need_help' => 'تحتاج مساعدة؟ تواصل معنا عبر واتساب',
     'trial_paywall_already_paid_refresh' => 'لقد دفعت بالفعل — تحديث',
     'trial_paywall_logout' => 'تسجيل الخروج',
+    'subscription_paywall_badge' => 'انتهت صلاحية الاشتراك',
+    'subscription_paywall_title' => 'انتهت صلاحية اشتراكك — يلزم التجديد',
+    'subscription_paywall_desc_owner' => 'جميع بياناتك (العملاء، الرحلات والفواتير) محفوظة بأمان. جدّد اشتراكك الآن للعودة للعمل فوراً.',
+    'subscription_paywall_desc_staff' => 'انتهت صلاحية اشتراك الوكالة. سيتم فتح النظام فور تجديد الاشتراك.',
 ];

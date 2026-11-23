@@ -782,4 +782,8 @@ return [
     'trial_paywall_need_help' => 'Need help? Chat with us on WhatsApp',
     'trial_paywall_already_paid_refresh' => 'I already paid — Refresh',
     'trial_paywall_logout' => 'Sign Out',
+    'subscription_paywall_badge' => 'Subscription Expired',
+    'subscription_paywall_title' => 'Your Subscription Has Expired — Renewal Required',
+    'subscription_paywall_desc_owner' => 'All your data (customers, trips, and receipts) is safely saved. Renew your plan below to restore full access immediately.',
+    'subscription_paywall_desc_staff' => 'Your agency\'s subscription has expired. Access will resume once the subscription is renewed.',
 ];

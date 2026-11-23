@@ -35,7 +35,7 @@ class RedirectIfWrongPanel
                 ]);
             }
 
-            if ($user->tenant && $user->tenant->isTrialExpired()) {
+            if ($user->tenant && $user->tenant->needsPaymentPaywall()) {
                 if ($panel->getId() === 'admin') {
                     return redirect('/agent/billing-and-invoices');
                 }

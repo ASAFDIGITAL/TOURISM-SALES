@@ -118,7 +118,7 @@ class GoogleAuthController extends Controller
             Auth::login($user, remember: true);
             $request->session()->regenerate();
 
-            if ($user->role === 'agent' && $user->tenant?->isTrialExpired()) {
+            if ($user->role === 'agent' && $user->tenant?->needsPaymentPaywall()) {
                 return redirect($user->isAgencyOwner() ? '/agent/billing-and-invoices' : '/agent');
             }
 
