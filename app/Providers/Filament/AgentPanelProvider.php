@@ -54,6 +54,10 @@ class AgentPanelProvider extends PanelProvider
                 fn (): string => view('filament.components.pwa-head')->render() . view('filament.components.crm-theme')->render(),
             )
             ->renderHook(
+                PanelsRenderHook::USER_MENU_BEFORE,
+                fn (): string => view('filament.components.topbar-language-switcher')->render(),
+            )
+            ->renderHook(
                 PanelsRenderHook::TOPBAR_BEFORE,
                 fn (): string => view('filament.agent.components.impersonation-banner')->render(),
             )
