@@ -7,6 +7,7 @@ use App\Models\Reminder;
 use App\Models\Trip;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class TripMessageService
 {
@@ -14,6 +15,13 @@ class TripMessageService
     public const TEMPLATE_PAYMENT_REMINDER = 'payment_reminder';
     public const TEMPLATE_PRE_TRIP_REMINDER = 'pre_trip_reminder';
     public const TEMPLATE_CUSTOM = 'custom';
+
+    private ?Reminder $lastEmailReminder = null;
+
+    public function getLastEmailReminder(): ?Reminder
+    {
+        return $this->lastEmailReminder;
+    }
 
     /**
      * Build a localized subject & body for the requested message template.
@@ -62,10 +70,37 @@ class TripMessageService
         bool $attachItinerary = false,
         ?string $senderName = null,
         bool $logReminder = true,
+        ?Reminder $existingReminder = null,
     ): bool {
+        $this->lastEmailReminder = null;
+
         $tenant = $trip->tenant;
         if ($tenant && ! $tenant->hasMonthlyEmailQuota()) {
             return false;
+        }
+
+        $trackingToken = Str::random(40);
+        $trackingUrl = route('email.track.open', ['token' => $trackingToken]);
+
+        $reminder = $existingReminder;
+        if ($reminder) {
+            $reminder->forceFill([
+                'recipient_email' => $recipientEmail,
+                'tracking_token' => $trackingToken,
+            ])->save();
+        } elseif ($logReminder) {
+            $reminder = Reminder::create([
+                'tenant_id' => $trip->tenant_id,
+                'trip_id' => $trip->id,
+                'recipient_type' => 'customer',
+                'channel' => 'email',
+                'recipient_email' => $recipientEmail,
+                'tracking_token' => $trackingToken,
+                'message_language' => $locale,
+                'scheduled_at' => now(),
+                'status' => 'pending',
+                'message' => $body,
+            ]);
         }
 
         $pdfContent = null;
@@ -77,18 +112,36 @@ class TripMessageService
             $pdfFilename = "{$safeTitle}_Itinerary.pdf";
         }
 
-        Mail::to($recipientEmail)->send(new TripMessageMail(
-            trip: $trip,
-            subjectLine: $subject,
-            bodyText: $body,
-            localeCode: $locale,
-            pdfContent: $pdfContent,
-            pdfFilename: $pdfFilename,
-            senderName: $senderName ?: $trip->tenant?->name,
-        ));
+        try {
+            Mail::to($recipientEmail)->send(new TripMessageMail(
+                trip: $trip,
+                subjectLine: $subject,
+                bodyText: $body,
+                localeCode: $locale,
+                pdfContent: $pdfContent,
+                pdfFilename: $pdfFilename,
+                senderName: $senderName ?: $trip->tenant?->name,
+                trackingUrl: $trackingUrl,
+            ));
+        } catch (\Throwable $e) {
+            if ($reminder) {
+                $reminder->forceFill([
+                    'status' => 'failed',
+                    'error_message' => Str::limit($e->getMessage(), 500),
+                ])->save();
+                $this->lastEmailReminder = $reminder;
+            }
 
-        if ($logReminder) {
-            $this->logSentMessage($trip, 'email', $body);
+            return false;
+        }
+
+        if ($reminder) {
+            $reminder->forceFill([
+                'status' => 'sent',
+                'sent_at' => now(),
+                'error_message' => null,
+            ])->save();
+            $this->lastEmailReminder = $reminder;
         }
 
         return true;

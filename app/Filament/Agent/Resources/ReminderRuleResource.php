@@ -281,7 +281,7 @@ class ReminderRuleResource extends Resource
                     ->modalCancelActionLabel(__('ui.close'))
                     ->modalContent(function (ReminderRule $record) {
                         $logs = $record->logs()
-                            ->with(['trip.customer'])
+                            ->with(['trip.customer', 'reminder'])
                             ->orderByDesc('sent_at')
                             ->limit(50)
                             ->get();

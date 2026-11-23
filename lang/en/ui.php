@@ -760,4 +760,13 @@ return [
     'agent_quota_increased_body' => 'Updated monthly allowance: up to :email_limit emails and :sms_limit SMS.',
     'quota_updated_success' => 'Agency quota updated!',
     'close' => 'Close',
+    'email_tracking_column' => 'Email Read Status',
+    'email_status_failed' => 'Delivery Failed',
+    'email_status_read_count' => 'Read (×:count)',
+    'email_status_sent_unread' => 'Sent (Unread)',
+    'email_opened_at_label' => 'Opened at :time',
+    'email_filter_read' => 'Opened by Customer',
+    'email_filter_unread' => 'Sent & Unread',
+    'email_opened_notif_title' => 'Email Opened by :customer',
+    'email_opened_notif_body' => ':customer just opened the email for :trip.',
 ];

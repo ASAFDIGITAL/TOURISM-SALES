@@ -50,6 +50,7 @@ class ReminderRuleEngine
                 ReminderRuleLog::create([
                     'reminder_rule_id' => $rule->id,
                     'trip_id' => $trip->id,
+                    'reminder_id' => $dispatchResult['reminder_id'] ?? null,
                     'sent_at' => now(),
                     'channels_sent' => implode(',', $dispatchResult['channels']),
                     'status' => $dispatchResult['status'],
@@ -333,6 +334,7 @@ class ReminderRuleEngine
         $tenant = $trip->tenant;
         $channelsSent = [];
         $notes = [];
+        $emailReminderId = null;
 
         // 1. Notify Agents (In-App + Phone Push)
         if (in_array($rule->recipient_type, ['agent', 'both'], true)) {
@@ -401,6 +403,7 @@ class ReminderRuleEngine
 
                     if ($sent) {
                         $channelsSent[] = 'email';
+                        $emailReminderId = $this->tripMessageService->getLastEmailReminder()?->id;
                     } else {
                         $notes[] = 'email_quota_exceeded';
                     }
@@ -430,6 +433,7 @@ class ReminderRuleEngine
             'channels' => array_values(array_unique($channelsSent)),
             'status' => $status,
             'notes' => array_values(array_unique($notes)),
+            'reminder_id' => $emailReminderId,
         ];
     }
 }

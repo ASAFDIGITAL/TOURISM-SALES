@@ -758,4 +758,13 @@ return [
     'agent_quota_increased_body' => 'رصيدك الشهري المحدث: حتى :email_limit بريد وحتى :sms_limit رسالة SMS.',
     'quota_updated_success' => 'تم تحديث رصيد الوكالة بنجاح!',
     'close' => 'إغلاق',
+    'email_tracking_column' => 'قراءة البريد',
+    'email_status_failed' => 'فشل الإرسال',
+    'email_status_read_count' => 'تمت القراءة (×:count)',
+    'email_status_sent_unread' => 'أُرسل (لم يُقرأ بعد)',
+    'email_opened_at_label' => 'قُرئ في :time',
+    'email_filter_read' => 'تمت قراءته',
+    'email_filter_unread' => 'أُرسل ولم يُقرأ بعد',
+    'email_opened_notif_title' => 'تمت قراءة البريد بواسطة :customer',
+    'email_opened_notif_body' => 'فتح :customer الآن رسالة البريد الخاصة برحلة :trip.',
 ];

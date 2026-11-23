@@ -12,6 +12,7 @@
                         <th style="padding: 8px 10px; text-align: start;">{{ __('ui.trip') }} / {{ __('ui.customer') }}</th>
                         <th style="padding: 8px 10px; text-align: start;">{{ __('ui.channels_sent') }}</th>
                         <th style="padding: 8px 10px; text-align: start;">{{ __('ui.status') }}</th>
+                        <th style="padding: 8px 10px; text-align: start;">{{ __('ui.email_tracking_column') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -23,6 +24,7 @@
                                 'partial' => 'background: rgba(245, 158, 11, 0.16); color: #d97706;',
                                 default => 'background: rgba(16, 185, 129, 0.14); color: #10b981;',
                             };
+                            $rem = $log->reminder;
                         @endphp
                         <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.16);">
                             <td style="padding: 8px 10px; white-space: nowrap;">
@@ -46,6 +48,28 @@
                                         {{ str_contains($log->note, 'email_quota_exceeded') ? __('ui.email_quota_reached_short') : '' }}
                                         {{ str_contains($log->note, 'sms_quota_exceeded') ? __('ui.sms_quota_reached_short') : '' }}
                                     </div>
+                                @endif
+                            </td>
+                            <td style="padding: 8px 10px; white-space: nowrap;">
+                                @if ($rem && $rem->channel === 'email')
+                                    @if ($rem->opened_at)
+                                        <span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.76rem; font-weight: 700; background: rgba(16, 185, 129, 0.14); color: #10b981;">
+                                            ✓✓ {{ __('ui.email_status_read_count', ['count' => max(1, (int) $rem->open_count)]) }}
+                                        </span>
+                                        <div style="font-size: 0.73rem; color: #64748b; margin-top: 2px;">
+                                            {{ $rem->opened_at->format('d/m/Y H:i') }}
+                                        </div>
+                                    @elseif ($rem->status === 'failed')
+                                        <span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.76rem; font-weight: 700; background: rgba(239, 68, 68, 0.14); color: #ef4444;">
+                                            ✗ {{ __('ui.email_status_failed') }}
+                                        </span>
+                                    @else
+                                        <span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.76rem; font-weight: 700; background: rgba(56, 189, 248, 0.14); color: #0284c7;">
+                                            ✓ {{ __('ui.email_status_sent_unread') }}
+                                        </span>
+                                    @endif
+                                @else
+                                    <span style="color: #94a3b8;">—</span>
                                 @endif
                             </td>
                         </tr>

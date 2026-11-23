@@ -16,15 +16,35 @@ class Reminder extends Model
         'category',
         'recipient_type',
         'channel',
+        'recipient_email',
+        'tracking_token',
         'message_language',
         'scheduled_at',
+        'sent_at',
+        'opened_at',
+        'last_opened_at',
+        'open_count',
         'status',
         'message',
+        'error_message',
+    ];
+
+    protected $attributes = [
+        'open_count' => 0,
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
+        'sent_at' => 'datetime',
+        'opened_at' => 'datetime',
+        'last_opened_at' => 'datetime',
+        'open_count' => 'integer',
     ];
+
+    public function isOpened(): bool
+    {
+        return $this->opened_at !== null;
+    }
 
     public function trip()
     {

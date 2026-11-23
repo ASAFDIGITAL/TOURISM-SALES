@@ -207,6 +207,7 @@ class ReminderResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('trip.title')
                     ->label(__('ui.trip'))
+                    ->description(fn (Reminder $record): ?string => $record->recipient_email ?: $record->trip?->customer?->name)
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('category')
@@ -236,6 +237,65 @@ class ReminderResource extends Resource
                         'pending' => 'warning',
                         'sent' => 'success',
                         'failed' => 'danger',
+                    })
+                    ->tooltip(fn (Reminder $record): ?string => $record->error_message),
+                Tables\Columns\TextColumn::make('email_read_status')
+                    ->label(__('ui.email_tracking_column'))
+                    ->state(function (Reminder $record): string {
+                        if ($record->channel !== 'email') {
+                            return '—';
+                        }
+
+                        if ($record->status === 'failed') {
+                            return '✗ ' . __('ui.email_status_failed');
+                        }
+
+                        if ($record->opened_at !== null) {
+                            $count = max(1, (int) $record->open_count);
+
+                            return '✓✓ ' . __('ui.email_status_read_count', ['count' => $count]);
+                        }
+
+                        if ($record->status === 'sent') {
+                            return '✓ ' . __('ui.email_status_sent_unread');
+                        }
+
+                        return __('ui.pending');
+                    })
+                    ->description(function (Reminder $record): ?string {
+                        if ($record->channel !== 'email') {
+                            return null;
+                        }
+
+                        if ($record->opened_at !== null) {
+                            return __('ui.email_opened_at_label', ['time' => $record->opened_at->format('d/m/Y H:i')]);
+                        }
+
+                        if ($record->error_message) {
+                            return \Illuminate\Support\Str::limit($record->error_message, 45);
+                        }
+
+                        return null;
+                    })
+                    ->badge()
+                    ->color(function (Reminder $record): string {
+                        if ($record->channel !== 'email') {
+                            return 'gray';
+                        }
+
+                        if ($record->status === 'failed') {
+                            return 'danger';
+                        }
+
+                        if ($record->opened_at !== null) {
+                            return 'success';
+                        }
+
+                        if ($record->status === 'sent') {
+                            return 'info';
+                        }
+
+                        return 'warning';
                     }),
             ])
             ->filters([
@@ -253,6 +313,22 @@ class ReminderResource extends Resource
                         'sent' => __('ui.sent'),
                         'failed' => __('ui.failed'),
                     ]),
+                Tables\Filters\SelectFilter::make('email_read')
+                    ->label(__('ui.email_tracking_column'))
+                    ->options([
+                        'read' => '✓✓ ' . __('ui.email_filter_read'),
+                        'unread' => '✓ ' . __('ui.email_filter_unread'),
+                    ])
+                    ->query(function ($query, array $data) {
+                        if (($data['value'] ?? null) === 'read') {
+                            return $query->where('channel', 'email')->whereNotNull('opened_at');
+                        }
+                        if (($data['value'] ?? null) === 'unread') {
+                            return $query->where('channel', 'email')->where('status', 'sent')->whereNull('opened_at');
+                        }
+
+                        return $query;
+                    }),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

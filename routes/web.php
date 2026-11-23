@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AgencyRegistrationController;
 use App\Http\Controllers\AviationSearchController;
+use App\Http\Controllers\EmailTrackingController;
 use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\LegalPageController;
@@ -58,6 +59,11 @@ Route::middleware(['auth'])->prefix('aviation')->name('aviation.')->group(functi
 
 // PayPlus Recurring Standing Order & Digital Invoices (IPN Webhook + Checkout Return)
 Route::post('/webhooks/payplus', [PayPlusController::class, 'webhook'])->name('payplus.webhook');
+
+// Email Open Tracking Pixel (1x1 transparent GIF)
+Route::get('/email-track/{token}/open.gif', [EmailTrackingController::class, 'open'])
+    ->where('token', '[A-Za-z0-9]+')
+    ->name('email.track.open');
 
 Route::middleware(['auth'])->prefix('billing/payplus')->name('payplus.')->group(function () {
     Route::post('/checkout', [PayPlusController::class, 'checkout'])->name('checkout');

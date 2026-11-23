@@ -760,4 +760,13 @@ return [
     'agent_quota_increased_body' => 'המכסה החודשית המעודכנת שלך: עד :email_limit אימיילים ועד :sms_limit הודעות SMS.',
     'quota_updated_success' => 'מכסת הסוכן עודכנה בהצלחה!',
     'close' => 'סגור',
+    'email_tracking_column' => 'קריאת מייל',
+    'email_status_failed' => 'נכשל בשליחה',
+    'email_status_read_count' => 'נקרא (×:count)',
+    'email_status_sent_unread' => 'נשלח (טרם נקרא)',
+    'email_opened_at_label' => 'נקרא ב-:time',
+    'email_filter_read' => 'נקרא ע"י הלקוח',
+    'email_filter_unread' => 'נשלח וטרם נקרא',
+    'email_opened_notif_title' => 'המייל נקרא ע"י :customer',
+    'email_opened_notif_body' => ':customer פתח/ה כעת את המייל עבור :trip.',
 ];

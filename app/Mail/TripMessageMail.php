@@ -23,6 +23,7 @@ class TripMessageMail extends Mailable
         public ?string $pdfContent = null,
         public ?string $pdfFilename = null,
         public ?string $senderName = null,
+        public ?string $trackingUrl = null,
     ) {}
 
     public function envelope(): Envelope
@@ -53,6 +54,7 @@ class TripMessageMail extends Mailable
                 'subjectLine' => $this->subjectLine,
                 'bodyText' => $this->bodyText,
                 'localeCode' => $this->localeCode,
+                'trackingUrl' => $this->trackingUrl,
             ],
         );
     }

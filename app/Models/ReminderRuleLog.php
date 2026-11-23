@@ -10,6 +10,7 @@ class ReminderRuleLog extends Model
     protected $fillable = [
         'reminder_rule_id',
         'trip_id',
+        'reminder_id',
         'sent_at',
         'channels_sent',
         'status',
@@ -28,5 +29,10 @@ class ReminderRuleLog extends Model
     public function trip(): BelongsTo
     {
         return $this->belongsTo(Trip::class);
+    }
+
+    public function reminder(): BelongsTo
+    {
+        return $this->belongsTo(Reminder::class);
     }
 }

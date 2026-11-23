@@ -105,6 +105,7 @@ class CheckReminders extends Command
                             locale: $lang,
                             attachItinerary: false,
                             logReminder: false,
+                            existingReminder: $reminder,
                         );
                         if (! $sent) {
                             $blockedByQuota = true;

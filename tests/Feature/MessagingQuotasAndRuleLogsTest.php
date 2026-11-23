@@ -185,4 +185,80 @@ class MessagingQuotasAndRuleLogsTest extends TestCase
             ->assertSee('2 / 6')
             ->assertSee('1 / 6');
     }
+
+    public function test_email_tracking_pixel_records_open_count_timestamp_and_notifies_agent(): void
+    {
+        Mail::fake();
+
+        $tenant = Tenant::create([
+            'name' => 'Pixel Agency',
+            'status' => 'active',
+            'reminders_enabled' => true,
+            'allowed_channels' => ['push', 'email'],
+            'currency' => 'ILS',
+            'language' => 'he',
+        ]);
+
+        $owner = User::create([
+            'name' => 'Pixel Owner',
+            'email' => 'owner@pixel.test',
+            'password' => Hash::make('password123'),
+            'role' => 'agent',
+            'agency_role' => User::AGENCY_ROLE_OWNER,
+            'tenant_id' => $tenant->id,
+        ]);
+
+        $customer = Customer::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'name' => 'Roni Client',
+            'email' => 'roni@pixel.test',
+        ]);
+
+        $trip = Trip::withoutGlobalScopes()->create([
+            'tenant_id' => $tenant->id,
+            'created_by_user_id' => $owner->id,
+            'customer_id' => $customer->id,
+            'title' => 'Rome Vacation',
+            'total_amount' => 3500,
+            'status' => 'confirmed',
+        ]);
+
+        $service = app(TripMessageService::class);
+        $sent = $service->sendEmail($trip, 'roni@pixel.test', 'Your Rome Trip', 'See you soon!');
+        $this->assertTrue($sent);
+
+        $reminder = $service->getLastEmailReminder();
+        $this->assertNotNull($reminder);
+        $this->assertNotEmpty($reminder->tracking_token);
+        $this->assertSame('sent', $reminder->status);
+        $this->assertNull($reminder->opened_at);
+        $this->assertSame(0, $reminder->open_count);
+
+        Mail::assertSent(TripMessageMail::class, function (TripMessageMail $mail) use ($reminder) {
+            return str_contains((string) $mail->trackingUrl, $reminder->tracking_token);
+        });
+
+        // Customer opens email first time -> pixel returns 1x1 GIF, marks opened_at, notifies owner
+        $resp1 = $this->get("/email-track/{$reminder->tracking_token}/open.gif");
+        $resp1->assertOk();
+        $resp1->assertHeader('Content-Type', 'image/gif');
+
+        $reminder->refresh();
+        $this->assertNotNull($reminder->opened_at);
+        $this->assertSame(1, $reminder->open_count);
+        $this->assertSame(1, $owner->notifications()->count());
+
+        // Customer opens email second time -> increments open_count, does NOT spam duplicate notification
+        $this->get("/email-track/{$reminder->tracking_token}/open.gif")->assertOk();
+        $reminder->refresh();
+        $this->assertSame(2, $reminder->open_count);
+        $this->assertSame(1, $owner->notifications()->count());
+
+        // Reminders table renders the read badge with count
+        $this->actingAs($owner)
+            ->get('/agent/reminders')
+            ->assertOk()
+            ->assertSee('Rome Vacation')
+            ->assertSee('נקרא (×2)');
+    }
 }
