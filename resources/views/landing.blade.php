@@ -540,11 +540,11 @@
             </nav>
 
             <div class="nav-actions">
-                <div class="lang-group">
-                    @foreach (['he' => 'עב', 'ar' => 'عر', 'en' => 'EN'] as $code => $label)
+                <div class="lang-group notranslate" translate="no">
+                    @foreach (['he' => 'עב', 'ar' => 'عربي', 'en' => 'EN'] as $code => $label)
                         <form method="POST" action="{{ route('locale.switch', $code) }}" style="margin:0;">
                             @csrf
-                            <button type="submit" class="lang-btn {{ $locale === $code ? 'active' : '' }}">{{ $label }}</button>
+                            <button type="submit" translate="no" class="lang-btn notranslate {{ $locale === $code ? 'active' : '' }}">{{ $label }}</button>
                         </form>
                     @endforeach
                 </div>
@@ -585,7 +585,7 @@
                         <i style="background:#f59e0b;"></i>
                         <i style="background:#10b981;"></i>
                     </div>
-                    <span style="font-size: 0.78rem; color: #94a3b8; font-weight: 700;">TOURISM-SALES CRM</span>
+                    <span class="notranslate" translate="no" style="font-size: 0.78rem; color: #94a3b8; font-weight: 700;">TOURISM-SALES CRM</span>
                 </div>
                 <div class="mockup-kpis">
                     <div class="mockup-kpi">

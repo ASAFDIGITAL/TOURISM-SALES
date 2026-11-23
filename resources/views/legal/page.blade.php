@@ -100,11 +100,11 @@
         <div class="top-nav-inner">
             <a href="{{ route('landing') }}"><img src="{{ asset('images/logo-dark.png') }}" alt="TOURISM-SALES"></a>
             <div class="top-links">
-                <div class="lang-group">
-                    @foreach (['he' => 'עב', 'ar' => 'عر', 'en' => 'EN'] as $code => $label)
+                <div class="lang-group notranslate" translate="no">
+                    @foreach (['he' => 'עב', 'ar' => 'عربي', 'en' => 'EN'] as $code => $label)
                         <form method="POST" action="{{ route('locale.switch', $code) }}" style="margin:0;">
                             @csrf
-                            <button type="submit" class="lang-btn {{ $locale === $code ? 'active' : '' }}">{{ $label }}</button>
+                            <button type="submit" translate="no" class="lang-btn notranslate {{ $locale === $code ? 'active' : '' }}">{{ $label }}</button>
                         </form>
                     @endforeach
                 </div>
