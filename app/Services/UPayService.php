@@ -174,6 +174,10 @@ class UPayService
                 }
 
                 $tenant->update($updates);
+
+                if ($tenant->coupon_id) {
+                    \App\Models\Coupon::where('id', $tenant->coupon_id)->increment('used_count');
+                }
             } else {
                 $tenant->update(['payplus_status' => 'failed']);
             }

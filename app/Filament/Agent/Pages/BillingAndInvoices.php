@@ -3,6 +3,7 @@
 namespace App\Filament\Agent\Pages;
 
 use App\Filament\Agent\Actions\RequestPlanUpgradeAction;
+use App\Models\Coupon;
 use App\Models\Plan;
 use App\Models\SubscriptionInvoice;
 use App\Services\PayPlusService;
@@ -20,6 +21,12 @@ class BillingAndInvoices extends Page
     public string $cycle = 'monthly';
 
     public int $extraSeats = 0;
+
+    public string $couponCodeInput = '';
+
+    public ?string $appliedCouponCode = null;
+
+    public ?string $couponError = null;
 
     public static function getNavigationLabel(): string
     {
@@ -42,16 +49,60 @@ class BillingAndInvoices extends Page
     {
         Plan::ensureDefaultPlansExist();
 
-        $tenant = Auth::user()?->getActiveTenant();
+        $tenant = Auth::user()?->getActiveTenant()?->load('coupon');
         $this->extraSeats = 0;
         if ($tenant?->payplus_billing_cycle === 'yearly') {
             $this->cycle = 'yearly';
+        }
+        if ($tenant?->coupon && $tenant->coupon->isValidFor()) {
+            $this->appliedCouponCode = $tenant->coupon->code;
+            $this->couponCodeInput = $tenant->coupon->code;
         }
     }
 
     public function updatedExtraSeats($value): void
     {
         $this->extraSeats = max(0, min(50, (int) $value));
+    }
+
+    public function applyCoupon(): void
+    {
+        $this->couponError = null;
+        $code = strtoupper(trim($this->couponCodeInput));
+
+        if ($code === '') {
+            $this->removeCoupon();
+
+            return;
+        }
+
+        $coupon = Coupon::findValidByCode($code);
+        if (! $coupon) {
+            $this->appliedCouponCode = null;
+            $this->couponError = __('ui.coupon_invalid_or_expired');
+
+            return;
+        }
+
+        $this->appliedCouponCode = $coupon->code;
+        $this->couponCodeInput = $coupon->code;
+
+        $tenant = Auth::user()?->getActiveTenant();
+        if ($tenant) {
+            $tenant->update(['coupon_id' => $coupon->id]);
+        }
+    }
+
+    public function removeCoupon(): void
+    {
+        $this->appliedCouponCode = null;
+        $this->couponCodeInput = '';
+        $this->couponError = null;
+
+        $tenant = Auth::user()?->getActiveTenant();
+        if ($tenant && $tenant->coupon_id !== null) {
+            $tenant->update(['coupon_id' => null]);
+        }
     }
 
     protected function getHeaderActions(): array
@@ -77,10 +128,14 @@ class BillingAndInvoices extends Page
             ? SubscriptionInvoice::where('tenant_id', $tenant->id)->with('plan')->orderByDesc('id')->limit(30)->get()
             : collect();
 
-        $planSummaries = $plans->map(function (Plan $plan) use ($payPlus) {
+        $activeCoupon = $this->appliedCouponCode
+            ? Coupon::findValidByCode($this->appliedCouponCode)
+            : null;
+
+        $planSummaries = $plans->map(function (Plan $plan) use ($payPlus, $activeCoupon) {
             return [
                 'plan' => $plan,
-                'totals' => $payPlus->calculateTotals($plan, $this->extraSeats, $this->cycle),
+                'totals' => $payPlus->calculateTotals($plan, $this->extraSeats, $this->cycle, $activeCoupon),
             ];
         });
 
@@ -89,6 +144,7 @@ class BillingAndInvoices extends Page
             'payPlusConfigured' => $payPlus->isConfigured(),
             'payPlusEnv' => config('payplus.env'),
             'vatRate' => $payPlus->getVatRate(),
+            'activeCoupon' => $activeCoupon,
             'planSummaries' => $planSummaries,
             'invoices' => $invoices,
         ];

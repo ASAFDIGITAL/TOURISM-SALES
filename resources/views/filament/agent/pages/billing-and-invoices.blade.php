@@ -71,18 +71,55 @@
                     </button>
                 </div>
 
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <label style="font-size: 0.82rem; font-weight: 700;">{{ __('ui.extra_seats_label') }}:</label>
-                    <input
-                        type="number"
-                        min="0"
-                        max="50"
-                        wire:model.live="extraSeats"
-                        class="ts-support-input"
-                        style="width: 82px; padding: 6px 10px; text-align: center;"
-                    >
+                <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                    <form wire:submit.prevent="applyCoupon" style="display: flex; align-items: center; gap: 6px;">
+                        <input
+                            type="text"
+                            wire:model="couponCodeInput"
+                            placeholder="{{ __('ui.coupon_code_placeholder') }}"
+                            class="ts-support-input"
+                            style="width: 155px; padding: 6px 10px; text-transform: uppercase; font-weight: 700;"
+                        >
+                        <button
+                            type="submit"
+                            style="border: none; padding: 7px 12px; border-radius: 9px; background: #0f172a; color: #fbbf24; font-size: 0.8rem; font-weight: 700; cursor: pointer;"
+                        >
+                            {{ __('ui.apply_coupon_btn') }}
+                        </button>
+                        @if ($activeCoupon)
+                            <button
+                                type="button"
+                                wire:click="removeCoupon"
+                                style="border: none; padding: 6px 8px; border-radius: 8px; background: rgba(239, 68, 68, 0.14); color: #ef4444; font-size: 0.78rem; font-weight: 700; cursor: pointer;"
+                            >
+                                ✕
+                            </button>
+                        @endif
+                    </form>
+
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="font-size: 0.82rem; font-weight: 700;">{{ __('ui.extra_seats_label') }}:</label>
+                        <input
+                            type="number"
+                            min="0"
+                            max="50"
+                            wire:model.live="extraSeats"
+                            class="ts-support-input"
+                            style="width: 82px; padding: 6px 10px; text-align: center;"
+                        >
+                    </div>
                 </div>
             </div>
+
+            @if ($activeCoupon)
+                <div style="margin-bottom: 16px; padding: 10px 14px; border-radius: 11px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35); color: #059669; font-size: 0.85rem; font-weight: 700;">
+                    🎟️ {{ __('ui.coupon_applied_banner', ['code' => $activeCoupon->code, 'discount' => $activeCoupon->getFormattedValue()]) }}
+                </div>
+            @elseif ($couponError)
+                <div style="margin-bottom: 16px; padding: 10px 14px; border-radius: 11px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); color: #dc2626; font-size: 0.85rem; font-weight: 700;">
+                    ⚠ {{ $couponError }}
+                </div>
+            @endif
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
                 @foreach ($planSummaries as $item)
@@ -104,6 +141,11 @@
                             </div>
 
                             <div style="margin-top: 10px;">
+                                @if (! empty($totals['coupon_applied']) && $totals['discount'] > 0)
+                                    <span style="font-size: 0.98rem; color: #94a3b8; text-decoration: line-through; margin-inline-end: 6px;">
+                                        {{ $sym }}{{ number_format($totals['original_subtotal'], 0) }}
+                                    </span>
+                                @endif
                                 <span style="font-size: 1.7rem; font-weight: 800;">{{ $sym }}{{ number_format($totals['subtotal'], 0) }}</span>
                                 <span style="font-size: 0.8rem; color: #64748b;">
                                     / {{ $cycle === 'yearly' ? __('ui.year_short') : __('ui.month_short') }} {{ __('ui.plus_vat') }}
@@ -125,7 +167,9 @@
                         </div>
 
                         @php
-                            $upayUrl = $plan->getUpayUrl($cycle);
+                            $hasDiscount = ! empty($totals['coupon_applied']) && $totals['discount'] > 0;
+                            $couponUpayUrl = ($hasDiscount && $activeCoupon?->upay_override_url) ? trim($activeCoupon->upay_override_url) : null;
+                            $upayUrl = $couponUpayUrl ?: ($hasDiscount ? null : $plan->getUpayUrl($cycle));
                         @endphp
 
                         @if ($payPlusConfigured)
@@ -134,6 +178,9 @@
                                 <input type="hidden" name="plan_id" value="{{ $plan->id }}">
                                 <input type="hidden" name="cycle" value="{{ $cycle }}">
                                 <input type="hidden" name="extra_seats" value="{{ $extraSeats }}">
+                                @if ($hasDiscount && $activeCoupon)
+                                    <input type="hidden" name="coupon_code" value="{{ $activeCoupon->code }}">
+                                @endif
                                 <x-filament::button type="submit" color="primary" icon="heroicon-o-credit-card" style="width: 100%;">
                                     {{ __('ui.payplus_start_standing_order_btn') }}
                                 </x-filament::button>
@@ -150,7 +197,7 @@
                         @else
                             <div style="display: flex; flex-direction: column; gap: 6px;">
                                 <a
-                                    href="https://api.whatsapp.com/send?phone=972502311554&text={{ rawurlencode('שלום, אני מעוניין להפעיל מנוי עבור ' . ($tenant?->name ?? '') . ' בחבילת ' . $plan->getLocalizedName('he') . ($extraSeats > 0 ? ' + ' . $extraSeats . ' עובדים נוספים' : '')) }}"
+                                    href="https://api.whatsapp.com/send?phone=972502311554&text={{ rawurlencode('שלום, אני מעוניין להפעיל מנוי עבור ' . ($tenant?->name ?? '') . ' בחבילת ' . $plan->getLocalizedName('he') . ($extraSeats > 0 ? ' + ' . $extraSeats . ' עובדים נוספים' : '') . ($hasDiscount && $activeCoupon ? ' עם קוד קופון ' . $activeCoupon->code . ' (סה"כ אחרי הנחה כולל מע"מ: ' . $sym . number_format($totals['total'], 2) . ')' : '')) }}"
                                     target="_blank"
                                     rel="noopener"
                                     style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 14px; border-radius: 10px; background: #0f172a; color: #fbbf24; font-size: 0.84rem; font-weight: 700; text-decoration: none;"

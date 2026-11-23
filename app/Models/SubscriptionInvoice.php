@@ -18,10 +18,12 @@ class SubscriptionInvoice extends Model
     protected $fillable = [
         'tenant_id',
         'plan_id',
+        'coupon_id',
         'provider',
         'billing_cycle',
         'status',
         'subtotal_amount',
+        'discount_amount',
         'vat_rate',
         'vat_amount',
         'total_amount',
@@ -55,6 +57,11 @@ class SubscriptionInvoice extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
     }
 
     public function getCurrencySymbol(): string

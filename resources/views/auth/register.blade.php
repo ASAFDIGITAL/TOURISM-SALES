@@ -250,13 +250,27 @@
                         </div>
                     </div>
 
-                    <div class="field">
-                        <label>{{ __('ui.currency') }}</label>
-                        <select name="currency">
-                            <option value="ILS" {{ old('currency', 'ILS') === 'ILS' ? 'selected' : '' }}>₪ ILS</option>
-                            <option value="USD" {{ old('currency') === 'USD' ? 'selected' : '' }}>$ USD</option>
-                            <option value="EUR" {{ old('currency') === 'EUR' ? 'selected' : '' }}>€ EUR</option>
-                        </select>
+                    <div class="row-2">
+                        <div class="field">
+                            <label>{{ __('ui.currency') }}</label>
+                            <select name="currency">
+                                <option value="ILS" {{ old('currency', 'ILS') === 'ILS' ? 'selected' : '' }}>₪ ILS</option>
+                                <option value="USD" {{ old('currency') === 'USD' ? 'selected' : '' }}>$ USD</option>
+                                <option value="EUR" {{ old('currency') === 'EUR' ? 'selected' : '' }}>€ EUR</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>{{ __('ui.coupon_optional_label') }}</label>
+                            <input
+                                type="text"
+                                name="coupon_code"
+                                value="{{ old('coupon_code', request()->query('coupon', '')) }}"
+                                placeholder="WELCOME20"
+                                dir="ltr"
+                                style="text-transform: uppercase;"
+                            >
+                            @error('coupon_code') <div class="err">{{ $message }}</div> @enderror
+                        </div>
                     </div>
 
                     <button type="submit" class="submit-btn">

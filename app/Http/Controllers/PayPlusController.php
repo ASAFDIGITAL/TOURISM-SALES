@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Coupon;
 use App\Models\Plan;
 use App\Services\PayPlusService;
 use Filament\Notifications\Notification;
@@ -22,13 +23,15 @@ class PayPlusController extends Controller
             'plan_id' => ['required', 'exists:plans,id'],
             'cycle' => ['nullable', 'in:monthly,yearly'],
             'extra_seats' => ['nullable', 'integer', 'min:0', 'max:50'],
+            'coupon_code' => ['nullable', 'string', 'max:64'],
         ]);
 
         $plan = Plan::findOrFail($validated['plan_id']);
         $cycle = (string) ($validated['cycle'] ?? 'monthly');
         $extraSeats = (int) ($validated['extra_seats'] ?? $tenant->extra_seats ?? 0);
+        $coupon = Coupon::findValidByCode($validated['coupon_code'] ?? $tenant->coupon?->code, $plan, $cycle);
 
-        $result = $payPlus->createRecurringPaymentLink($tenant, $plan, $cycle, $extraSeats);
+        $result = $payPlus->createRecurringPaymentLink($tenant, $plan, $cycle, $extraSeats, $coupon);
 
         if (! ($result['ok'] ?? false) || empty($result['payment_url'])) {
             Notification::make()

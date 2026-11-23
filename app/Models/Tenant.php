@@ -19,6 +19,7 @@ class Tenant extends Model
         'status',
         'subscription_type',
         'plan_id',
+        'coupon_id',
         'extra_seats',
         'extra_email_quota',
         'extra_sms_quota',
@@ -56,6 +57,11 @@ class Tenant extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class);
+    }
+
+    public function coupon(): BelongsTo
+    {
+        return $this->belongsTo(Coupon::class);
     }
 
     public function isLifetime(): bool

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Filament\Resources\SubscriptionInvoiceResource;
+use App\Models\Coupon;
 use App\Models\Plan;
 use App\Models\SubscriptionInvoice;
 use App\Models\Tenant;
@@ -35,11 +36,11 @@ class PayPlusService
     }
 
     /**
-     * Calculate net subtotal, VAT, total, and itemized PayPlus line items.
+     * Calculate net subtotal, optional coupon discount, VAT, total, and itemized PayPlus line items.
      *
-     * @return array{subtotal: float, vat_rate: float, vat_amount: float, total: float, currency: string, items: array<int, array<string, mixed>>}
+     * @return array{original_subtotal: float, discount: float, subtotal: float, vat_rate: float, vat_amount: float, total: float, currency: string, items: array<int, array<string, mixed>>, coupon_applied: bool}
      */
-    public function calculateTotals(Plan $plan, int $extraSeats = 0, string $cycle = 'monthly'): array
+    public function calculateTotals(Plan $plan, int $extraSeats = 0, string $cycle = 'monthly', ?Coupon $coupon = null): array
     {
         $cycle = $cycle === 'yearly' ? 'yearly' : 'monthly';
         $extraSeats = max(0, $extraSeats);
@@ -52,16 +53,20 @@ class PayPlusService
             : (float) $plan->extra_user_price;
 
         $seatsNet = round($seatUnitNet * $extraSeats, 2);
-        $subtotal = round($planNet + $seatsNet, 2);
+        $originalSubtotal = round($planNet + $seatsNet, 2);
+
+        $couponApplied = $coupon !== null && $coupon->isValidFor($plan, $cycle);
+        $discount = $couponApplied ? $coupon->calculateDiscount($originalSubtotal) : 0.0;
+        $subtotal = round(max(0.0, $originalSubtotal - $discount), 2);
         $vatAmount = round($subtotal * ($vatRate / 100), 2);
         $total = round($subtotal + $vatAmount, 2);
 
         $cycleLabel = $cycle === 'yearly' ? __('ui.billing_yearly') : __('ui.billing_monthly');
         $items = [
             [
-                'name' => 'TOURISM-SALES — ' . $plan->getLocalizedName('he') . " ({$cycleLabel})",
+                'name' => 'TOURISM-SALES — ' . $plan->getLocalizedName('he') . " ({$cycleLabel})" . ($couponApplied ? " [{$coupon->code}]" : ''),
                 'quantity' => 1,
-                'price' => round($planNet * $vatMultiplier, 2),
+                'price' => round(max(0.0, ($planNet - $discount)) * $vatMultiplier, 2),
                 'vat_type' => 0, // VAT included in item gross price
             ],
         ];
@@ -75,23 +80,37 @@ class PayPlusService
             ];
         }
 
-        // Ensure item sum matches exact total (avoid 1-agora rounding drift)
+        // Ensure item sum matches exact total (avoid 1-agora rounding drift or fixed discount > planNet)
         $itemsSum = 0.0;
         foreach ($items as $item) {
             $itemsSum += ((float) $item['price']) * ((int) $item['quantity']);
         }
         $diff = round($total - $itemsSum, 2);
-        if (abs($diff) > 0 && abs($diff) <= 0.10) {
-            $items[0]['price'] = round(((float) $items[0]['price']) + $diff, 2);
+        if (abs($diff) > 0) {
+            if (abs($diff) <= 0.10) {
+                $items[0]['price'] = round(max(0.0, ((float) $items[0]['price']) + $diff), 2);
+            } else {
+                $items = [
+                    [
+                        'name' => 'TOURISM-SALES — ' . $plan->getLocalizedName('he') . " ({$cycleLabel})" . ($couponApplied ? " [{$coupon->code}]" : ''),
+                        'quantity' => 1,
+                        'price' => $total,
+                        'vat_type' => 0,
+                    ],
+                ];
+            }
         }
 
         return [
+            'original_subtotal' => $originalSubtotal,
+            'discount' => $discount,
             'subtotal' => $subtotal,
             'vat_rate' => $vatRate,
             'vat_amount' => $vatAmount,
             'total' => $total,
             'currency' => $plan->currency ?: 'ILS',
             'items' => $items,
+            'coupon_applied' => $couponApplied,
         ];
     }
 
@@ -105,6 +124,7 @@ class PayPlusService
         Plan $plan,
         string $cycle = 'monthly',
         int $extraSeats = 0,
+        ?Coupon $coupon = null,
     ): array {
         if (! $this->isConfigured()) {
             return [
@@ -114,11 +134,14 @@ class PayPlusService
         }
 
         $cycle = $cycle === 'yearly' ? 'yearly' : 'monthly';
-        $totals = $this->calculateTotals($plan, $extraSeats, $cycle);
+        $validCoupon = ($coupon && $coupon->isValidFor($plan, $cycle)) ? $coupon : null;
+        $totals = $this->calculateTotals($plan, $extraSeats, $cycle, $validCoupon);
 
         $invoice = SubscriptionInvoice::create([
             'tenant_id' => $tenant->id,
             'plan_id' => $plan->id,
+            'coupon_id' => $validCoupon?->id,
+            'discount_amount' => $totals['discount'],
             'billing_cycle' => $cycle,
             'status' => SubscriptionInvoice::STATUS_PENDING,
             'subtotal_amount' => $totals['subtotal'],

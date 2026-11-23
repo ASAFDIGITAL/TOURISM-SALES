@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Filament\Resources\TenantResource;
+use App\Models\Coupon;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\User;
@@ -57,14 +58,24 @@ class AgencyRegistrationController extends Controller
             'password' => ['required', 'string', 'min:6', 'confirmed'],
             'plan_id' => ['required', 'exists:plans,id'],
             'currency' => ['nullable', 'in:ILS,USD,EUR,GBP'],
+            'coupon_code' => ['nullable', 'string', 'max:64'],
         ]);
 
         $plan = Plan::findOrFail($validated['plan_id']);
+        $coupon = null;
+        if (! empty(trim((string) ($validated['coupon_code'] ?? '')))) {
+            $coupon = Coupon::findValidByCode($validated['coupon_code'], $plan);
+            if (! $coupon) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['coupon_code' => __('ui.coupon_invalid_or_expired')]);
+            }
+        }
         $locale = in_array(app()->getLocale(), ['he', 'ar', 'en'], true) ? app()->getLocale() : 'he';
         $trialDays = max(1, (int) $plan->trial_days);
         $trialEnds = now()->addDays($trialDays);
 
-        [$tenant, $user] = DB::transaction(function () use ($validated, $plan, $locale, $trialEnds, $ruleEngine) {
+        [$tenant, $user] = DB::transaction(function () use ($validated, $plan, $coupon, $locale, $trialEnds, $ruleEngine) {
             $tenant = Tenant::create([
                 'name' => trim($validated['agency_name']),
                 'email' => strtolower(trim($validated['email'])),
@@ -72,6 +83,7 @@ class AgencyRegistrationController extends Controller
                 'status' => 'active',
                 'subscription_type' => 'recurring',
                 'plan_id' => $plan->id,
+                'coupon_id' => $coupon?->id,
                 'extra_seats' => 0,
                 'is_trial' => true,
                 'trial_ends_at' => $trialEnds,
