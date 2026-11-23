@@ -124,6 +124,10 @@
                             </div>
                         </div>
 
+                        @php
+                            $upayUrl = $plan->getUpayUrl($cycle);
+                        @endphp
+
                         @if ($payPlusConfigured)
                             <form method="POST" action="{{ route('payplus.checkout') }}">
                                 @csrf
@@ -134,9 +138,18 @@
                                     {{ __('ui.payplus_start_standing_order_btn') }}
                                 </x-filament::button>
                             </form>
+                        @elseif ($upayUrl && $extraSeats === 0)
+                            <a
+                                href="{{ $upayUrl }}"
+                                target="_blank"
+                                rel="noopener"
+                                style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border-radius: 10px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #0f172a; font-size: 0.86rem; font-weight: 800; text-decoration: none; box-shadow: 0 6px 16px -6px rgba(245, 158, 11, 0.55);"
+                            >
+                                💳 {{ __('ui.payplus_start_standing_order_btn') }}
+                            </a>
                         @else
                             <a
-                                href="https://api.whatsapp.com/send?phone=972502311554&text={{ rawurlencode('שלום, אני מעוניין להפעיל הוראת קבע עבור ' . ($tenant?->name ?? '') . ' בחבילת ' . $plan->getLocalizedName('he')) }}"
+                                href="https://api.whatsapp.com/send?phone=972502311554&text={{ rawurlencode('שלום, אני מעוניין להפעיל מנוי עבור ' . ($tenant?->name ?? '') . ' בחבילת ' . $plan->getLocalizedName('he') . ($extraSeats > 0 ? ' + ' . $extraSeats . ' עובדים נוספים' : '')) }}"
                                 target="_blank"
                                 rel="noopener"
                                 style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 14px; border-radius: 10px; background: #0f172a; color: #fbbf24; font-size: 0.84rem; font-weight: 700; text-decoration: none;"

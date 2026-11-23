@@ -769,4 +769,8 @@ return [
     'email_filter_unread' => 'Sent & Unread',
     'email_opened_notif_title' => 'Email Opened by :customer',
     'email_opened_notif_body' => ':customer just opened the email for :trip.',
+    'upay_monthly_url_label' => 'UPay Monthly Standing Order Direct Link',
+    'upay_yearly_url_label' => 'UPay Yearly Standing Order Direct Link',
+    'upay_urls_helper' => 'In UPay set Return URL: https://tourism.asafdigital.com/billing/upay/return | Server Update URL: https://tourism.asafdigital.com/webhooks/upay',
+    'payment_provider' => 'Provider',
 ];

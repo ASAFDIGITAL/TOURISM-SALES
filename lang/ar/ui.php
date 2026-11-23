@@ -767,4 +767,8 @@ return [
     'email_filter_unread' => 'أُرسل ولم يُقرأ بعد',
     'email_opened_notif_title' => 'تمت قراءة البريد بواسطة :customer',
     'email_opened_notif_body' => 'فتح :customer الآن رسالة البريد الخاصة برحلة :trip.',
+    'upay_monthly_url_label' => 'رابط الدفع الشهري المباشر (UPay)',
+    'upay_yearly_url_label' => 'رابط الدفع السنوي المباشر (UPay)',
+    'upay_urls_helper' => 'في UPay ضع رابط العودة: https://tourism.asafdigital.com/billing/upay/return ورابط تحديث الخادم: https://tourism.asafdigital.com/webhooks/upay',
+    'payment_provider' => 'بوابة الدفع',
 ];

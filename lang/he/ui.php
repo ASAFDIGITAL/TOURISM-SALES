@@ -769,4 +769,8 @@ return [
     'email_filter_unread' => 'נשלח וטרם נקרא',
     'email_opened_notif_title' => 'המייל נקרא ע"י :customer',
     'email_opened_notif_body' => ':customer פתח/ה כעת את המייל עבור :trip.',
+    'upay_monthly_url_label' => 'קישור הוראת קבע חודשי (UPay - קישור ישיר)',
+    'upay_yearly_url_label' => 'קישור הוראת קבע שנתי (UPay - קישור ישיר)',
+    'upay_urls_helper' => 'ב-UPay הגדר: קישור לדף החזרה = https://tourism.asafdigital.com/billing/upay/return | קישור לעדכון שרת = https://tourism.asafdigital.com/webhooks/upay',
+    'payment_provider' => 'ספק סליקה',
 ];

@@ -112,6 +112,19 @@ class PlanResource extends Resource
                             ->numeric()
                             ->default(49)
                             ->required(),
+                        Forms\Components\TextInput::make('upay_monthly_url')
+                            ->label(__('ui.upay_monthly_url_label'))
+                            ->url()
+                            ->placeholder('https://app.upay.co.il/API6/s.php?m=...')
+                            ->helperText(__('ui.upay_urls_helper'))
+                            ->maxLength(500)
+                            ->columnSpanFull(),
+                        Forms\Components\TextInput::make('upay_yearly_url')
+                            ->label(__('ui.upay_yearly_url_label'))
+                            ->url()
+                            ->placeholder('https://app.upay.co.il/API6/s.php?m=...')
+                            ->maxLength(500)
+                            ->columnSpanFull(),
                     ])
                     ->columns(3),
 

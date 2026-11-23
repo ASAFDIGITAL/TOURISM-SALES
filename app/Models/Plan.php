@@ -20,6 +20,8 @@ class Plan extends Model
         'description_en',
         'monthly_price',
         'yearly_price',
+        'upay_monthly_url',
+        'upay_yearly_url',
         'currency',
         'included_users',
         'extra_user_price',
@@ -75,6 +77,14 @@ class Plan extends Model
             'ar' => (string) ($this->description_ar ?: $this->description_en),
             default => (string) ($this->description_en ?: $this->description_he),
         };
+    }
+
+    public function getUpayUrl(string $cycle = 'monthly'): ?string
+    {
+        $url = $cycle === 'yearly' ? $this->upay_yearly_url : $this->upay_monthly_url;
+        $trimmed = trim((string) $url);
+
+        return $trimmed !== '' ? $trimmed : null;
     }
 
     public function getCurrencySymbol(): string

@@ -52,6 +52,11 @@ class SubscriptionInvoiceResource extends Resource
                     ->badge()
                     ->color('primary')
                     ->placeholder('-'),
+                Tables\Columns\TextColumn::make('provider')
+                    ->label(__('ui.payment_provider'))
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => $state === 'upay' ? 'UPay' : 'PayPlus')
+                    ->color(fn (?string $state): string => $state === 'upay' ? 'info' : 'gray'),
                 Tables\Columns\TextColumn::make('billing_cycle')
                     ->label(__('ui.billing_cycle_label'))
                     ->formatStateUsing(fn (string $state): string => $state === 'yearly' ? __('ui.billing_yearly') : __('ui.billing_monthly')),

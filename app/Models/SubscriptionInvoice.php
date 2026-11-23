@@ -18,6 +18,7 @@ class SubscriptionInvoice extends Model
     protected $fillable = [
         'tenant_id',
         'plan_id',
+        'provider',
         'billing_cycle',
         'status',
         'subtotal_amount',

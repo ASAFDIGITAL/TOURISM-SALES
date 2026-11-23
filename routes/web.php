@@ -9,6 +9,7 @@ use App\Http\Controllers\LegalPageController;
 use App\Http\Controllers\PayPlusController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\TenantImpersonationController;
+use App\Http\Controllers\UPayController;
 use App\Http\Middleware\SetLocaleMiddleware;
 use Illuminate\Support\Facades\Route;
 
@@ -59,6 +60,10 @@ Route::middleware(['auth'])->prefix('aviation')->name('aviation.')->group(functi
 
 // PayPlus Recurring Standing Order & Digital Invoices (IPN Webhook + Checkout Return)
 Route::post('/webhooks/payplus', [PayPlusController::class, 'webhook'])->name('payplus.webhook');
+
+// UPay Recurring Standing Order (Server Update Webhook + Return Page)
+Route::match(['get', 'post'], '/webhooks/upay', [UPayController::class, 'webhook'])->name('upay.webhook');
+Route::get('/billing/upay/return', [UPayController::class, 'returnPage'])->name('upay.return');
 
 // Email Open Tracking Pixel (1x1 transparent GIF)
 Route::get('/email-track/{token}/open.gif', [EmailTrackingController::class, 'open'])
