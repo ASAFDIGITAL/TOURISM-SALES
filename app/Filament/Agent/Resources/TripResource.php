@@ -145,6 +145,7 @@ class TripResource extends Resource
                                         Forms\Components\Select::make('status')
                                             ->label(__('ui.status'))
                                             ->options([
+                                                'quote' => __('ui.quote'),
                                                 'draft' => __('ui.draft'),
                                                 'confirmed' => __('ui.confirmed'),
                                                 'completed' => __('ui.completed'),
@@ -335,16 +336,57 @@ class TripResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => __("ui.{$state}"))
                     ->color(fn (string $state): string => match ($state) {
+                        'quote' => 'primary',
                         'draft' => 'gray',
                         'confirmed' => 'info',
                         'completed' => 'success',
                         'cancelled' => 'danger',
+                        default => 'gray',
                     }),
+                Tables\Columns\TextColumn::make('portal_views_count')
+                    ->label(__('ui.portal_views'))
+                    ->badge()
+                    ->color(fn ($state): string => ((int) $state) > 0 ? 'success' : 'gray')
+                    ->formatStateUsing(fn ($state): string => '👁 ' . (int) $state)
+                    ->tooltip(fn (Trip $record): ?string => $record->portal_last_viewed_at
+                        ? __('ui.portal_last_viewed', ['time' => $record->portal_last_viewed_at->format('d/m/Y H:i')])
+                        : null)
+                    ->toggleable(),
             ])
             ->filters([
-                //
+                Tables\Filters\SelectFilter::make('status')
+                    ->label(__('ui.status'))
+                    ->options([
+                        'quote' => __('ui.quote'),
+                        'draft' => __('ui.draft'),
+                        'confirmed' => __('ui.confirmed'),
+                        'completed' => __('ui.completed'),
+                        'cancelled' => __('ui.cancelled'),
+                    ]),
             ])
             ->actions([
+                Tables\Actions\Action::make('convert_quote')
+                    ->label(__('ui.convert_quote_to_trip'))
+                    ->icon('heroicon-o-check-badge')
+                    ->color('primary')
+                    ->visible(fn (Trip $record): bool => $record->isQuote())
+                    ->requiresConfirmation()
+                    ->action(function (Trip $record) {
+                        $record->update([
+                            'status' => Trip::STATUS_CONFIRMED,
+                            'quote_approved_at' => $record->quote_approved_at ?? now(),
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->success()
+                            ->title(__('ui.quote_converted_success'))
+                            ->send();
+                    }),
+                Tables\Actions\Action::make('open_portal')
+                    ->label(__('ui.client_portal'))
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->color('info')
+                    ->url(fn (Trip $record): string => $record->getPortalUrl(), shouldOpenInNewTab: true),
                 \App\Filament\Agent\Actions\SendTripMessageAction::makeTableAction(),
                 Tables\Actions\Action::make('download_itinerary')
                     ->label(__('ui.download_itinerary'))

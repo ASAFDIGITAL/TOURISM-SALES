@@ -229,6 +229,7 @@ class TripMessageService
                 $lines[] = "*ملاحظات إضافية:*\n{$summaryText}";
             }
             $lines[] = '';
+            $lines[] = '*رابط تفاصيل الرحلة والمستندات:* ' . $trip->getPortalUrl();
             $lines[] = 'نتمنى لك رحلة سعيدة وممتعة!';
             $lines[] = trim($tenantName . ($tenantPhone ? " | {$tenantPhone}" : ''));
 
@@ -286,6 +287,7 @@ class TripMessageService
                 $lines[] = "*Notes:*\n{$summaryText}";
             }
             $lines[] = '';
+            $lines[] = '*Trip Portal & Documents:* ' . $trip->getPortalUrl();
             $lines[] = 'Have a wonderful trip!';
             $lines[] = trim($tenantName . ($tenantPhone ? " | {$tenantPhone}" : ''));
 
@@ -347,6 +349,7 @@ class TripMessageService
             $lines[] = "*פרטים נוספים:*\n{$summaryText}";
         }
         $lines[] = '';
+        $lines[] = '*לצפייה בפרטי הטיול ומסמכי הנסיעה:* ' . $trip->getPortalUrl();
         $lines[] = 'נסיעה טובה ומהנה!';
         $lines[] = trim($tenantName . ($tenantPhone ? " | {$tenantPhone}" : ''));
 

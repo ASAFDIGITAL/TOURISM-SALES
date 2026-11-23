@@ -120,6 +120,14 @@ class AgencyRegistrationController extends Controller
 
         $this->notifyAdmins($tenant, $user, $plan, $webPush);
 
+        try {
+            app(\App\Services\TrialOnboardingService::class)->sendStepIfNeeded(
+                $tenant,
+                \App\Services\TrialOnboardingService::STEP_DAY_0
+            );
+        } catch (\Throwable) {
+        }
+
         Auth::login($user);
         $request->session()->regenerate();
 

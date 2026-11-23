@@ -18,8 +18,13 @@ class Customer extends Model
         'email',
         'phone',
         'passport_number',
+        'passport_expires_at',
         'address',
         'notes',
+    ];
+
+    protected $casts = [
+        'passport_expires_at' => 'date',
     ];
 
     protected static function booted(): void

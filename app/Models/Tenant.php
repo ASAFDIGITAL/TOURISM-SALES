@@ -25,6 +25,8 @@ class Tenant extends Model
         'extra_sms_quota',
         'is_trial',
         'trial_ends_at',
+        'trial_drip_steps_sent',
+        'last_activity_at',
         'logo_path',
         'pdf_header_theme',
         'receipt_prefix',
@@ -50,6 +52,8 @@ class Tenant extends Model
         'extra_sms_quota' => 'integer',
         'is_trial' => 'boolean',
         'trial_ends_at' => 'datetime',
+        'trial_drip_steps_sent' => 'array',
+        'last_activity_at' => 'datetime',
         'reminders_enabled' => 'boolean',
         'allowed_channels' => 'array',
     ];

@@ -9,6 +9,7 @@ use App\Http\Controllers\LegalPageController;
 use App\Http\Controllers\PayPlusController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\TenantImpersonationController;
+use App\Http\Controllers\TripPortalController;
 use App\Http\Controllers\UPayController;
 use App\Http\Middleware\SetLocaleMiddleware;
 use Illuminate\Support\Facades\Route;
@@ -73,6 +74,16 @@ Route::get('/billing/upay/return', [UPayController::class, 'returnPage'])->name(
 Route::get('/email-track/{token}/open.gif', [EmailTrackingController::class, 'open'])
     ->where('token', '[A-Za-z0-9]+')
     ->name('email.track.open');
+
+// Public Branded Customer Trip Portal & 1-Click Quote Approval
+Route::prefix('t/{token}')->where(['token' => '[A-Za-z0-9]+'])->name('trip.portal.')->group(function () {
+    Route::get('/', [TripPortalController::class, 'show'])->name('show');
+    Route::get('/itinerary', [TripPortalController::class, 'downloadItinerary'])->name('itinerary');
+    Route::get('/attachment/{attachment}', [TripPortalController::class, 'downloadAttachment'])->name('attachment');
+    Route::post('/approve-quote', [TripPortalController::class, 'approveQuote'])
+        ->middleware('throttle:10,1')
+        ->name('approve-quote');
+});
 
 Route::middleware(['auth'])->prefix('billing/payplus')->name('payplus.')->group(function () {
     Route::post('/checkout', [PayPlusController::class, 'checkout'])->name('checkout');
