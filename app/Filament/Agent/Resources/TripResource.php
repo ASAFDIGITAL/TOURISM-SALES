@@ -363,6 +363,76 @@ class TripResource extends Resource
                         'completed' => __('ui.completed'),
                         'cancelled' => __('ui.cancelled'),
                     ]),
+                Tables\Filters\SelectFilter::make('payment_state')
+                    ->label(__('ui.payment_status_filter'))
+                    ->options([
+                        'unpaid' => __('ui.payment_filter_unpaid'),
+                        'partial' => __('ui.payment_filter_partial'),
+                        'paid' => __('ui.payment_filter_paid'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $val = $data['value'] ?? null;
+                        if (! $val) {
+                            return $query;
+                        }
+
+                        return match ($val) {
+                            'unpaid' => $query
+                                ->where('status', '!=', Trip::STATUS_CANCELLED)
+                                ->where('total_amount', '>', 0)
+                                ->whereRaw('COALESCE((SELECT SUM(amount) FROM payments WHERE payments.trip_id = trips.id), 0) < trips.total_amount'),
+                            'partial' => $query
+                                ->where('status', '!=', Trip::STATUS_CANCELLED)
+                                ->whereRaw('COALESCE((SELECT SUM(amount) FROM payments WHERE payments.trip_id = trips.id), 0) > 0')
+                                ->whereRaw('COALESCE((SELECT SUM(amount) FROM payments WHERE payments.trip_id = trips.id), 0) < trips.total_amount'),
+                            'paid' => $query
+                                ->where('total_amount', '>', 0)
+                                ->whereRaw('COALESCE((SELECT SUM(amount) FROM payments WHERE payments.trip_id = trips.id), 0) >= trips.total_amount'),
+                            default => $query,
+                        };
+                    }),
+                Tables\Filters\SelectFilter::make('customer_id')
+                    ->label(__('ui.customer'))
+                    ->relationship('customer', 'name')
+                    ->searchable()
+                    ->preload(),
+                Tables\Filters\SelectFilter::make('created_by_user_id')
+                    ->label(__('ui.sales_rep'))
+                    ->relationship(
+                        'createdBy',
+                        'name',
+                        modifyQueryUsing: fn (Builder $query) => $query->where('tenant_id', auth()->user()?->getActiveTenantId())
+                    )
+                    ->preload()
+                    ->visible(fn (): bool => auth()->user()?->hasAgentPermission(\App\Models\User::PERM_VIEW_ALL_TRIPS) ?? false),
+                Tables\Filters\Filter::make('departure_dates')
+                    ->label(__('ui.departure_date_range'))
+                    ->form([
+                        Forms\Components\DatePicker::make('from')
+                            ->label(__('ui.from_date'))
+                            ->native(false),
+                        Forms\Components\DatePicker::make('until')
+                            ->label(__('ui.to_date'))
+                            ->native(false),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when($data['from'] ?? null, fn (Builder $q, $date) => $q->whereDate('start_date', '>=', $date))
+                            ->when($data['until'] ?? null, fn (Builder $q, $date) => $q->whereDate('start_date', '<=', $date));
+                    }),
+                Tables\Filters\SelectFilter::make('portal_viewed')
+                    ->label(__('ui.portal_views'))
+                    ->options([
+                        'viewed' => __('ui.portal_filter_viewed'),
+                        'not_viewed' => __('ui.portal_filter_not_viewed'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return match ($data['value'] ?? null) {
+                            'viewed' => $query->where('portal_views_count', '>', 0),
+                            'not_viewed' => $query->where(fn ($q) => $q->whereNull('portal_views_count')->orWhere('portal_views_count', 0)),
+                            default => $query,
+                        };
+                    }),
             ])
             ->actions([
                 Tables\Actions\Action::make('convert_quote')
