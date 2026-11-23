@@ -70,6 +70,8 @@ class SalesReports extends Page implements HasTable
         foreach ($grouped as $userId => $userTrips) {
             $repName = $userTrips->first()?->createdBy?->name ?? __('ui.unassigned_rep');
             $sales = (float) $userTrips->sum('total_amount');
+            $cost = (float) $userTrips->sum('supplier_cost');
+            $profit = round($sales - $cost, 2);
             $collected = (float) $userTrips->sum(fn (Trip $t) => (float) $t->payments->sum('amount'));
             $balance = max(0, $sales - $collected);
             $rate = $sales > 0 ? (int) min(100, round(($collected / $sales) * 100)) : 100;
@@ -79,6 +81,8 @@ class SalesReports extends Page implements HasTable
                 'trips_count' => $userTrips->count(),
                 'sales_raw' => $sales,
                 'sales' => $symbol . number_format($sales, 2),
+                'profit_raw' => $profit,
+                'profit' => $symbol . number_format($profit, 2),
                 'collected' => $symbol . number_format($collected, 2),
                 'balance' => $symbol . number_format($balance, 2),
                 'balance_raw' => $balance,
@@ -179,9 +183,12 @@ class SalesReports extends Page implements HasTable
                 __('ui.customer'),
                 __('ui.trip'),
                 __('ui.destination'),
+                __('ui.supplier_name'),
                 __('ui.creation_date'),
                 __('ui.start_date'),
                 __('ui.total_amount'),
+                __('ui.supplier_cost'),
+                __('ui.net_profit'),
                 __('ui.paid'),
                 __('ui.balance'),
                 __('ui.status'),
@@ -190,13 +197,17 @@ class SalesReports extends Page implements HasTable
             foreach ($trips as $trip) {
                 $paid = (float) $trip->payments->sum('amount');
                 $total = (float) $trip->total_amount;
+                $cost = (float) $trip->supplier_cost;
                 fputcsv($out, [
                     $trip->customer?->name ?? '',
                     $trip->title,
                     $trip->destination ?? '',
+                    $trip->supplier_name ?? '',
                     $trip->created_at?->format('d/m/Y') ?? '',
                     $trip->start_date?->format('d/m/Y') ?? '',
                     number_format($total, 2, '.', ''),
+                    number_format($cost, 2, '.', ''),
+                    number_format($total - $cost, 2, '.', ''),
                     number_format($paid, 2, '.', ''),
                     number_format($total - $paid, 2, '.', ''),
                     __("ui.{$trip->status}"),
@@ -240,12 +251,18 @@ class SalesReports extends Page implements HasTable
         }
         $salesQuery->where('status', '!=', 'cancelled');
         
-        $totalSales = $salesQuery->sum('total_amount');
-        $tripsCount = $salesQuery->count();
+        $totalSales = (float) $salesQuery->sum('total_amount');
+        $totalSupplierCost = (float) (clone $salesQuery)->sum('supplier_cost');
+        $totalNetProfit = round($totalSales - $totalSupplierCost, 2);
+        $avgMargin = $totalSales > 0 ? round(($totalNetProfit / $totalSales) * 100, 1) : 0.0;
+        $tripsCount = (clone $salesQuery)->count();
 
         return [
             'revenue' => $symbol . number_format($totalRevenue, 2),
             'sales' => $symbol . number_format($totalSales, 2),
+            'supplier_cost' => $symbol . number_format($totalSupplierCost, 2),
+            'net_profit' => $symbol . number_format($totalNetProfit, 2),
+            'margin' => $avgMargin,
             'trips_count' => $tripsCount,
         ];
     }
@@ -278,6 +295,16 @@ class SalesReports extends Page implements HasTable
                 Tables\Columns\TextColumn::make('total_amount')
                     ->label(__('ui.total_amount'))
                     ->formatStateUsing(fn ($state) => $this->formatMoney($state)),
+                Tables\Columns\TextColumn::make('supplier_cost')
+                    ->label(__('ui.supplier_cost'))
+                    ->formatStateUsing(fn ($state) => $this->formatMoney((float) $state))
+                    ->toggleable(),
+                Tables\Columns\TextColumn::make('net_profit')
+                    ->label(__('ui.net_profit'))
+                    ->getStateUsing(fn (Trip $record) => $record->net_profit)
+                    ->formatStateUsing(fn ($state) => $this->formatMoney((float) $state))
+                    ->color(fn ($state) => $state >= 0 ? 'success' : 'danger')
+                    ->weight('bold'),
                 Tables\Columns\TextColumn::make('paid_amount')
                     ->label(__('ui.paid'))
                     ->getStateUsing(fn (Trip $record) => $record->payments->sum('amount'))
@@ -292,10 +319,12 @@ class SalesReports extends Page implements HasTable
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => __("ui.{$state}"))
                     ->color(fn (string $state): string => match ($state) {
+                        'quote' => 'primary',
                         'draft' => 'gray',
                         'confirmed' => 'info',
                         'completed' => 'success',
                         'cancelled' => 'danger',
+                        default => 'gray',
                     }),
             ])
             ->defaultSort('created_at', 'desc');

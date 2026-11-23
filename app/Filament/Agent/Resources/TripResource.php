@@ -97,6 +97,9 @@ class TripResource extends Resource
                                                         Forms\Components\TextInput::make('passport_number')
                                                             ->label(__('ui.passport_number'))
                                                             ->maxLength(255),
+                                                        Forms\Components\DatePicker::make('passport_expires_at')
+                                                            ->label(__('ui.passport_expires_at'))
+                                                            ->native(false),
                                                     ]),
                                                 Forms\Components\Textarea::make('address')
                                                     ->label(__('ui.address'))
@@ -163,6 +166,24 @@ class TripResource extends Resource
                                                 default => '$',
                                             })
                                             ->required(),
+                                        Forms\Components\TextInput::make('supplier_name')
+                                            ->label(__('ui.supplier_name'))
+                                            ->placeholder(__('ui.supplier_name_placeholder'))
+                                            ->maxLength(160)
+                                            ->visible(fn (): bool => auth()->user()?->hasAgentPermission(\App\Models\User::PERM_VIEW_FINANCIAL_STATS) ?? false),
+                                        Forms\Components\TextInput::make('supplier_cost')
+                                            ->label(__('ui.supplier_cost'))
+                                            ->helperText(__('ui.supplier_cost_hidden_helper'))
+                                            ->numeric()
+                                            ->default(0)
+                                            ->minValue(0)
+                                            ->prefix(fn () => match (auth()->user()->getActiveTenant()?->currency ?? 'USD') {
+                                                'ILS' => '₪',
+                                                'EUR' => '€',
+                                                'GBP' => '£',
+                                                default => '$',
+                                            })
+                                            ->visible(fn (): bool => auth()->user()?->hasAgentPermission(\App\Models\User::PERM_VIEW_FINANCIAL_STATS) ?? false),
                                         Forms\Components\Select::make('created_by_user_id')
                                             ->label(__('ui.assigned_sales_rep'))
                                             ->options(fn (): array => \App\Models\User::query()
@@ -306,6 +327,18 @@ class TripResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('customer.name')
                     ->label(__('ui.customer'))
+                    ->description(function (Trip $record): ?string {
+                        if ($record->status === Trip::STATUS_CANCELLED || ! $record->customer) {
+                            return null;
+                        }
+                        if ($record->customer->hasPassportExpiryRisk($record->start_date)) {
+                            return '⚠ ' . __('ui.passport_warning_short', [
+                                'date' => $record->customer->passport_expires_at->format('d/m/Y'),
+                            ]);
+                        }
+
+                        return null;
+                    })
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('title')
@@ -331,6 +364,24 @@ class TripResource extends Resource
                     ->money(fn ($record) => $record->tenant->currency ?? 'USD', locale: 'en')
                     ->badge()
                     ->color(fn ($record) => $record->paid_amount >= $record->total_amount ? 'success' : 'warning'),
+                Tables\Columns\TextColumn::make('net_profit')
+                    ->label(__('ui.net_profit'))
+                    ->state(function (Trip $record): string {
+                        $sym = match ($record->tenant?->currency ?? 'ILS') {
+                            'ILS' => '₪',
+                            'EUR' => '€',
+                            'GBP' => '£',
+                            default => '$',
+                        };
+                        $profit = $record->net_profit;
+                        $margin = $record->profit_margin;
+
+                        return $sym . number_format($profit, 0) . ' (' . $margin . '%)';
+                    })
+                    ->badge()
+                    ->color(fn (Trip $record): string => $record->net_profit >= 0 ? 'success' : 'danger')
+                    ->visible(fn (): bool => auth()->user()?->hasAgentPermission(\App\Models\User::PERM_VIEW_FINANCIAL_STATS) ?? false)
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('status')
                     ->label(__('ui.status'))
                     ->badge()

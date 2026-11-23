@@ -45,4 +45,15 @@ class Customer extends Model
     {
         return $this->hasMany(Trip::class);
     }
+
+    public function hasPassportExpiryRisk(?\Carbon\Carbon $departureDate = null, int $monthsRequired = 6): bool
+    {
+        if (! $this->passport_expires_at) {
+            return false;
+        }
+
+        $ref = ($departureDate ?? now())->copy()->startOfDay();
+
+        return $this->passport_expires_at->copy()->startOfDay()->lt($ref->addMonths($monthsRequired));
+    }
 }

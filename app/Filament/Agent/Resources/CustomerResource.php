@@ -72,6 +72,10 @@ class CustomerResource extends Resource
                 Forms\Components\TextInput::make('passport_number')
                     ->label(__('ui.passport_number'))
                     ->maxLength(255),
+                Forms\Components\DatePicker::make('passport_expires_at')
+                    ->label(__('ui.passport_expires_at'))
+                    ->helperText(__('ui.passport_6m_rule_helper'))
+                    ->native(false),
                 Forms\Components\Textarea::make('address')
                     ->label(__('ui.address'))
                     ->columnSpanFull(),
@@ -97,13 +101,26 @@ class CustomerResource extends Resource
                 Tables\Columns\TextColumn::make('passport_number')
                     ->label(__('ui.passport_number'))
                     ->searchable(),
+                Tables\Columns\TextColumn::make('passport_expires_at')
+                    ->label(__('ui.passport_expires_at'))
+                    ->date('d/m/Y')
+                    ->placeholder('-')
+                    ->badge()
+                    ->color(fn (Customer $record): string => ! $record->passport_expires_at
+                        ? 'gray'
+                        : ($record->hasPassportExpiryRisk() ? 'danger' : 'success'))
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                //
+                Tables\Filters\Filter::make('passport_expiring')
+                    ->label(__('ui.filter_passport_expiring'))
+                    ->query(fn ($query) => $query
+                        ->whereNotNull('passport_expires_at')
+                        ->whereDate('passport_expires_at', '<', now()->addMonths(6)->toDateString())),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

@@ -92,6 +92,7 @@ class AgentPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 \App\Http\Middleware\SetLocaleMiddleware::class,
                 \App\Http\Middleware\RedirectIfWrongPanel::class,
+                \App\Http\Middleware\TrackTenantActivity::class,
                 DispatchServingFilamentEvent::class,
             ])
             ->authMiddleware([
