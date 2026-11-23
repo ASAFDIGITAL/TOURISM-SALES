@@ -773,4 +773,5 @@ return [
     'upay_yearly_url_label' => 'קישור הוראת קבע שנתי (UPay - קישור ישיר)',
     'upay_urls_helper' => 'ב-UPay הגדר: קישור לדף החזרה = https://tourism.asafdigital.com/billing/upay/return | קישור לעדכון שרת = https://tourism.asafdigital.com/webhooks/upay',
     'payment_provider' => 'ספק סליקה',
+    'reset_extra_seats_for_card_payment' => 'או אפס עובדים נוספים לתשלום מיידי באשראי',
 ];

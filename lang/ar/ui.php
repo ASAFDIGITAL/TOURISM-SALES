@@ -771,4 +771,5 @@ return [
     'upay_yearly_url_label' => 'رابط الدفع السنوي المباشر (UPay)',
     'upay_urls_helper' => 'في UPay ضع رابط العودة: https://tourism.asafdigital.com/billing/upay/return ورابط تحديث الخادم: https://tourism.asafdigital.com/webhooks/upay',
     'payment_provider' => 'بوابة الدفع',
+    'reset_extra_seats_for_card_payment' => 'أو صفّر الموظفين الإضافيين للدفع الفوري بالبطاقة',
 ];

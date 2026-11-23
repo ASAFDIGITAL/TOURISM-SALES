@@ -138,7 +138,7 @@
                                     {{ __('ui.payplus_start_standing_order_btn') }}
                                 </x-filament::button>
                             </form>
-                        @elseif ($upayUrl && $extraSeats === 0)
+                        @elseif ($upayUrl && (int) $extraSeats === 0)
                             <a
                                 href="{{ $upayUrl }}"
                                 target="_blank"
@@ -148,14 +148,25 @@
                                 💳 {{ __('ui.payplus_start_standing_order_btn') }}
                             </a>
                         @else
-                            <a
-                                href="https://api.whatsapp.com/send?phone=972502311554&text={{ rawurlencode('שלום, אני מעוניין להפעיל מנוי עבור ' . ($tenant?->name ?? '') . ' בחבילת ' . $plan->getLocalizedName('he') . ($extraSeats > 0 ? ' + ' . $extraSeats . ' עובדים נוספים' : '')) }}"
-                                target="_blank"
-                                rel="noopener"
-                                style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 14px; border-radius: 10px; background: #0f172a; color: #fbbf24; font-size: 0.84rem; font-weight: 700; text-decoration: none;"
-                            >
-                                {{ __('ui.payplus_arrange_via_whatsapp') }}
-                            </a>
+                            <div style="display: flex; flex-direction: column; gap: 6px;">
+                                <a
+                                    href="https://api.whatsapp.com/send?phone=972502311554&text={{ rawurlencode('שלום, אני מעוניין להפעיל מנוי עבור ' . ($tenant?->name ?? '') . ' בחבילת ' . $plan->getLocalizedName('he') . ($extraSeats > 0 ? ' + ' . $extraSeats . ' עובדים נוספים' : '')) }}"
+                                    target="_blank"
+                                    rel="noopener"
+                                    style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 14px; border-radius: 10px; background: #0f172a; color: #fbbf24; font-size: 0.84rem; font-weight: 700; text-decoration: none;"
+                                >
+                                    {{ __('ui.payplus_arrange_via_whatsapp') }}
+                                </a>
+                                @if ($upayUrl && (int) $extraSeats > 0)
+                                    <button
+                                        type="button"
+                                        wire:click="$set('extraSeats', 0)"
+                                        style="background: none; border: none; padding: 2px; font-size: 0.74rem; color: #d97706; font-weight: 700; cursor: pointer; text-decoration: underline;"
+                                    >
+                                        {{ __('ui.reset_extra_seats_for_card_payment') }}
+                                    </button>
+                                @endif
+                            </div>
                         @endif
                     </div>
                 @endforeach

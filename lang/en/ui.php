@@ -773,4 +773,5 @@ return [
     'upay_yearly_url_label' => 'UPay Yearly Standing Order Direct Link',
     'upay_urls_helper' => 'In UPay set Return URL: https://tourism.asafdigital.com/billing/upay/return | Server Update URL: https://tourism.asafdigital.com/webhooks/upay',
     'payment_provider' => 'Provider',
+    'reset_extra_seats_for_card_payment' => 'Or reset extra seats to pay instantly by card',
 ];

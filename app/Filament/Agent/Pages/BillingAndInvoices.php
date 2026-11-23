@@ -43,10 +43,15 @@ class BillingAndInvoices extends Page
         Plan::ensureDefaultPlansExist();
 
         $tenant = Auth::user()?->getActiveTenant();
-        $this->extraSeats = (int) ($tenant?->extra_seats ?? 0);
+        $this->extraSeats = 0;
         if ($tenant?->payplus_billing_cycle === 'yearly') {
             $this->cycle = 'yearly';
         }
+    }
+
+    public function updatedExtraSeats($value): void
+    {
+        $this->extraSeats = max(0, min(50, (int) $value));
     }
 
     protected function getHeaderActions(): array
