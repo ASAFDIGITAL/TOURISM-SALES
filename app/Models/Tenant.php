@@ -275,6 +275,11 @@ class Tenant extends Model
         return $this->hasMany(Customer::class);
     }
 
+    public function hotels()
+    {
+        return $this->hasMany(Hotel::class);
+    }
+
     public function trips()
     {
         return $this->hasMany(Trip::class);

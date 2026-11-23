@@ -5,6 +5,7 @@ namespace App\Filament\Agent\Resources;
 use App\Filament\Agent\Resources\TripResource\Pages;
 use App\Filament\Agent\Resources\TripResource\RelationManagers;
 use App\Models\Customer;
+use App\Models\Hotel;
 use App\Models\Trip;
 use App\Services\AviationDirectoryService;
 use Filament\Forms;
@@ -205,12 +206,131 @@ class TripResource extends Resource
                                 Forms\Components\Repeater::make('hotels')
                                     ->label(__('ui.hotels'))
                                     ->schema([
-                                        Forms\Components\TextInput::make('name')->label(__('ui.hotel_name')),
-                                        Forms\Components\DatePicker::make('from')->label(__('ui.start_date'))->native(false),
-                                        Forms\Components\DatePicker::make('until')->label(__('ui.end_date'))->native(false),
-                                        Forms\Components\TextInput::make('rooms')->label(__('ui.rooms_count'))->numeric(),
+                                        Forms\Components\Select::make('name')
+                                            ->label(__('ui.hotel_name'))
+                                            ->searchable()
+                                            ->options(fn (Get $get): array => Hotel::tripSelectOptions(
+                                                search: null,
+                                                preferredDestination: $get('../../destination'),
+                                                limit: 80,
+                                            ))
+                                            ->getSearchResultsUsing(fn (string $search, Get $get): array => Hotel::tripSelectOptions(
+                                                search: $search,
+                                                preferredDestination: $get('../../destination'),
+                                                limit: 40,
+                                            ))
+                                            ->getOptionLabelUsing(function ($value): ?string {
+                                                if (blank($value)) {
+                                                    return null;
+                                                }
+
+                                                $name = (string) $value;
+                                                $hotel = Hotel::query()->where('name', $name)->first();
+
+                                                return $hotel ? $hotel->display_label : $name;
+                                            })
+                                            ->placeholder(__('ui.select_or_add_hotel_placeholder'))
+                                            ->live()
+                                            ->afterStateUpdated(function (?string $state, Get $get, Set $set): void {
+                                                if (blank($state) || filled($get('../../supplier_name'))) {
+                                                    return;
+                                                }
+
+                                                $supplier = Hotel::query()
+                                                    ->where('name', $state)
+                                                    ->value('default_supplier');
+
+                                                if (filled($supplier)) {
+                                                    $set('../../supplier_name', $supplier);
+                                                }
+                                            })
+                                            ->createOptionForm([
+                                                Forms\Components\Grid::make(2)
+                                                    ->schema([
+                                                        Forms\Components\TextInput::make('name')
+                                                            ->label(__('ui.hotel_name'))
+                                                            ->required()
+                                                            ->maxLength(255)
+                                                            ->columnSpanFull(),
+                                                        Forms\Components\Select::make('destination')
+                                                            ->label(__('ui.destination'))
+                                                            ->searchable()
+                                                            ->options(fn (): array => app(AviationDirectoryService::class)->searchDestinations('', 30))
+                                                            ->getSearchResultsUsing(fn (string $search): array => app(AviationDirectoryService::class)->searchDestinations($search, 25))
+                                                            ->getOptionLabelUsing(fn ($value): ?string => $value ? (string) $value : null)
+                                                            ->placeholder(__('ui.search_destination_placeholder'))
+                                                            ->createOptionForm([
+                                                                Forms\Components\TextInput::make('custom_value')
+                                                                    ->label(__('ui.destination'))
+                                                                    ->required()
+                                                                    ->maxLength(255),
+                                                            ])
+                                                            ->createOptionUsing(fn (array $data): string => trim((string) $data['custom_value']))
+                                                            ->createOptionModalHeading(__('ui.custom_destination')),
+                                                        Forms\Components\Select::make('stars')
+                                                            ->label(__('ui.hotel_stars'))
+                                                            ->options([
+                                                                1 => '★ (1)',
+                                                                2 => '★★ (2)',
+                                                                3 => '★★★ (3)',
+                                                                4 => '★★★★ (4)',
+                                                                5 => '★★★★★ (5)',
+                                                            ]),
+                                                        Forms\Components\TextInput::make('phone')
+                                                            ->label(__('ui.phone'))
+                                                            ->tel()
+                                                            ->maxLength(64),
+                                                        Forms\Components\TextInput::make('default_supplier')
+                                                            ->label(__('ui.default_supplier'))
+                                                            ->placeholder(__('ui.supplier_name_placeholder'))
+                                                            ->maxLength(160),
+                                                    ]),
+                                                Forms\Components\Textarea::make('notes')
+                                                    ->label(__('ui.notes'))
+                                                    ->rows(2),
+                                            ])
+                                            ->createOptionUsing(function (array $data): string {
+                                                $name = trim((string) ($data['name'] ?? ''));
+                                                $tenantId = auth()->user()?->getActiveTenantId();
+
+                                                $hotel = Hotel::query()->firstOrCreate(
+                                                    [
+                                                        'tenant_id' => $tenantId,
+                                                        'name' => $name,
+                                                    ],
+                                                    [
+                                                        'destination' => filled($data['destination'] ?? null) ? trim((string) $data['destination']) : null,
+                                                        'stars' => filled($data['stars'] ?? null) ? (int) $data['stars'] : null,
+                                                        'phone' => filled($data['phone'] ?? null) ? trim((string) $data['phone']) : null,
+                                                        'default_supplier' => filled($data['default_supplier'] ?? null) ? trim((string) $data['default_supplier']) : null,
+                                                        'notes' => filled($data['notes'] ?? null) ? trim((string) $data['notes']) : null,
+                                                        'is_active' => true,
+                                                    ],
+                                                );
+
+                                                return $hotel->name;
+                                            })
+                                            ->createOptionModalHeading(__('ui.quick_new_hotel'))
+                                            ->createOptionAction(fn (Forms\Components\Actions\Action $action) => $action
+                                                ->label(__('ui.quick_new_hotel'))
+                                                ->tooltip(__('ui.quick_new_hotel'))
+                                                ->modalSubmitActionLabel(__('ui.save_hotel_to_list'))
+                                            )
+                                            ->columnSpan(['default' => 5, 'md' => 2]),
+                                        Forms\Components\DatePicker::make('from')
+                                            ->label(__('ui.start_date'))
+                                            ->native(false)
+                                            ->columnSpan(['default' => 5, 'md' => 1]),
+                                        Forms\Components\DatePicker::make('until')
+                                            ->label(__('ui.end_date'))
+                                            ->native(false)
+                                            ->columnSpan(['default' => 5, 'md' => 1]),
+                                        Forms\Components\TextInput::make('rooms')
+                                            ->label(__('ui.rooms_count'))
+                                            ->numeric()
+                                            ->columnSpan(['default' => 5, 'md' => 1]),
                                     ])
-                                    ->columns(4)
+                                    ->columns(5)
                                     ->columnSpanFull(),
                                 
                                 Forms\Components\Repeater::make('flights')
