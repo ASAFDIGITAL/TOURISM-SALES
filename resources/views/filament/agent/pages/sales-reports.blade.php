@@ -45,63 +45,122 @@
             $stats = $this->getStats();
         @endphp
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <style>
+            .ts-sales-kpi-grid {
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 14px;
+            }
+            .ts-sales-kpi-card {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                min-width: 0;
+            }
+            .ts-sales-kpi-icon {
+                flex-shrink: 0;
+                width: 44px;
+                height: 44px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .ts-sales-kpi-body {
+                min-width: 0;
+                flex: 1;
+            }
+            .ts-sales-kpi-label {
+                font-size: 0.8rem;
+                font-weight: 600;
+                color: #64748b;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                margin: 0;
+            }
+            .ts-sales-kpi-value {
+                font-size: clamp(1.05rem, 1.45vw, 1.45rem);
+                font-weight: 800;
+                line-height: 1.25;
+                margin: 3px 0 0;
+                font-variant-numeric: tabular-nums;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .ts-sales-kpi-sub {
+                font-size: 0.74rem;
+                color: #64748b;
+                margin: 3px 0 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            @media (max-width: 1180px) {
+                .ts-sales-kpi-grid {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                }
+                .ts-sales-kpi-value {
+                    font-size: 1.35rem;
+                }
+            }
+            @media (max-width: 640px) {
+                .ts-sales-kpi-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+
+        <div class="ts-sales-kpi-grid">
             <x-filament::section>
-                <div class="flex items-center gap-4">
-                    <div class="p-3 bg-success-100 rounded-full dark:bg-success-900/20">
-                        <x-heroicon-o-currency-dollar class="w-8 h-8 text-success-600 dark:text-success-400" />
+                <div class="ts-sales-kpi-card">
+                    <div class="ts-sales-kpi-icon" style="background: rgba(16, 185, 129, 0.14); color: #10b981;">
+                        <x-heroicon-o-currency-dollar class="w-6 h-6" />
                     </div>
-                    <div>
-                        <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ __('ui.total_collected') }}</h2>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ $stats['revenue'] }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {{ __('ui.payments') }}
-                        </p>
+                    <div class="ts-sales-kpi-body">
+                        <h2 class="ts-sales-kpi-label">{{ __('ui.total_collected') }}</h2>
+                        <p class="ts-sales-kpi-value" title="{{ $stats['revenue'] }}"><span dir="ltr">{{ $stats['revenue'] }}</span></p>
+                        <p class="ts-sales-kpi-sub">{{ __('ui.payments') }}</p>
                     </div>
                 </div>
             </x-filament::section>
 
             <x-filament::section>
-                <div class="flex items-center gap-4">
-                    <div class="p-3 bg-primary-100 rounded-full dark:bg-primary-900/20">
-                        <x-heroicon-o-shopping-cart class="w-8 h-8 text-primary-600 dark:text-primary-400" />
+                <div class="ts-sales-kpi-card">
+                    <div class="ts-sales-kpi-icon" style="background: rgba(245, 158, 11, 0.14); color: #f59e0b;">
+                        <x-heroicon-o-shopping-cart class="w-6 h-6" />
                     </div>
-                    <div>
-                        <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ __('ui.total_sales_volume') }}</h2>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ $stats['sales'] }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {{ __('ui.supplier_cost') }}: {{ $stats['supplier_cost'] }}
-                        </p>
+                    <div class="ts-sales-kpi-body">
+                        <h2 class="ts-sales-kpi-label">{{ __('ui.total_sales_volume') }}</h2>
+                        <p class="ts-sales-kpi-value" title="{{ $stats['sales'] }}"><span dir="ltr">{{ $stats['sales'] }}</span></p>
+                        <p class="ts-sales-kpi-sub" title="{{ $stats['supplier_cost'] }}">{{ __('ui.supplier_cost') }}: <span dir="ltr">{{ $stats['supplier_cost'] }}</span></p>
                     </div>
                 </div>
             </x-filament::section>
 
             <x-filament::section>
-                <div class="flex items-center gap-4">
-                    <div class="p-3 bg-success-100 rounded-full dark:bg-success-900/20">
-                        <x-heroicon-o-arrow-trending-up class="w-8 h-8 text-success-600 dark:text-success-400" />
+                <div class="ts-sales-kpi-card">
+                    <div class="ts-sales-kpi-icon" style="background: rgba(16, 185, 129, 0.14); color: #059669;">
+                        <x-heroicon-o-arrow-trending-up class="w-6 h-6" />
                     </div>
-                    <div>
-                        <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ __('ui.net_profit') }}</h2>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ $stats['net_profit'] }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {{ __('ui.profit_margin_label', ['pct' => $stats['margin']]) }}
-                        </p>
+                    <div class="ts-sales-kpi-body">
+                        <h2 class="ts-sales-kpi-label">{{ __('ui.net_profit') }}</h2>
+                        <p class="ts-sales-kpi-value" title="{{ $stats['net_profit'] }}" style="color: #10b981;"><span dir="ltr">{{ $stats['net_profit'] }}</span></p>
+                        <p class="ts-sales-kpi-sub">{{ __('ui.profit_margin_label', ['pct' => $stats['margin']]) }}</p>
                     </div>
                 </div>
             </x-filament::section>
 
             <x-filament::section>
-                <div class="flex items-center gap-4">
-                    <div class="p-3 bg-info-100 rounded-full dark:bg-info-900/20">
-                        <x-heroicon-o-briefcase class="w-8 h-8 text-info-600 dark:text-info-400" />
+                <div class="ts-sales-kpi-card">
+                    <div class="ts-sales-kpi-icon" style="background: rgba(14, 165, 233, 0.14); color: #0ea5e9;">
+                        <x-heroicon-o-briefcase class="w-6 h-6" />
                     </div>
-                    <div>
-                        <h2 class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ __('ui.total_trips_count') ?? 'כמות טיולים' }}</h2>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ $stats['trips_count'] }}</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {{ __('ui.trips') }}
-                        </p>
+                    <div class="ts-sales-kpi-body">
+                        <h2 class="ts-sales-kpi-label">{{ __('ui.total_trips_count') ?? 'כמות טיולים' }}</h2>
+                        <p class="ts-sales-kpi-value">{{ number_format((int) $stats['trips_count']) }}</p>
+                        <p class="ts-sales-kpi-sub">{{ __('ui.trips') }}</p>
                     </div>
                 </div>
             </x-filament::section>
