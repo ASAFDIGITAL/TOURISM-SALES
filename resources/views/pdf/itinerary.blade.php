@@ -166,7 +166,7 @@
 
     $iconPlane = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#976919" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21 3-6 7 2 9-2 2-4-8-4 4 .3 3-1.4 1.4L4 17l-3-2 1.5-1.4 3 .3 4-4-8-4 2-2 9 2 6-5c2-1 3 0 2.5 2z"/></svg>');
     $iconHotel = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#976919" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V4h14v17M10 21v-5h4v5M8 8h2m4 0h2m-8 4h2m4 0h2"/></svg>');
-    $iconRoute = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#976919" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="18" cy="18" r="2"/><path d="M7 6h8a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h7"/></svg>');
+    $iconUsers = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#976919" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>');
     $iconPayment = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#976919" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>');
     $iconBrandMark = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bf841d" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L15 22l-4-9-9-4 20-7zM11 13l7-7"/></svg>');
 
@@ -776,45 +776,37 @@
         @endforeach
     @endif
 
-    {{-- Passengers & Itinerary Summary Section --}}
-    @if($passengersCount > 0 || !empty($trip->trip_summary))
+    {{-- Passengers Section --}}
+    @if($passengersCount > 0)
         <table class="section-head">
             <tr>
                 @if($isRtl)
                     <td class="section-rule-cell"><div class="section-rule"></div></td>
-                    <td class="section-title-cell"><div class="section-title">{{ $f($t('ui.itinerary_schedule_heading')) }}</div></td>
-                    <td class="section-icon-cell"><div class="section-icon-circle"><img src="{{ $iconRoute }}" alt=""></div></td>
+                    <td class="section-title-cell"><div class="section-title">{{ $f($t('ui.passengers')) }}</div></td>
+                    <td class="section-icon-cell"><div class="section-icon-circle"><img src="{{ $iconUsers }}" alt=""></div></td>
                 @else
-                    <td class="section-icon-cell"><div class="section-icon-circle"><img src="{{ $iconRoute }}" alt=""></div></td>
-                    <td class="section-title-cell"><div class="section-title">{{ $t('ui.itinerary_schedule_heading') }}</div></td>
+                    <td class="section-icon-cell"><div class="section-icon-circle"><img src="{{ $iconUsers }}" alt=""></div></td>
+                    <td class="section-title-cell"><div class="section-title">{{ $t('ui.passengers') }}</div></td>
                     <td class="section-rule-cell"><div class="section-rule"></div></td>
                 @endif
             </tr>
         </table>
 
-        @if($passengersCount > 0)
-            <table class="pax-list">
-                <tbody>
-                    @foreach($passengers as $idx => $passenger)
-                        <tr>
-                            @if($isRtl)
-                                <td>{{ $f($passenger['name'] ?? '') }}</td>
-                                <td class="pax-idx" style="text-align: right;">{{ sprintf('%02d', $idx + 1) }}</td>
-                            @else
-                                <td class="pax-idx" style="text-align: left;">{{ sprintf('%02d', $idx + 1) }}</td>
-                                <td>{{ $passenger['name'] ?? '' }}</td>
-                            @endif
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        @endif
-
-        @if(!empty($trip->trip_summary))
-            <div class="summary-editorial">
-                {!! $isRtl ? \App\Helpers\PdfHelper::fixRtl($trip->trip_summary) : $trip->trip_summary !!}
-            </div>
-        @endif
+        <table class="pax-list">
+            <tbody>
+                @foreach($passengers as $idx => $passenger)
+                    <tr>
+                        @if($isRtl)
+                            <td>{{ $f($passenger['name'] ?? '') }}</td>
+                            <td class="pax-idx" style="text-align: right;">{{ sprintf('%02d', $idx + 1) }}</td>
+                        @else
+                            <td class="pax-idx" style="text-align: left;">{{ sprintf('%02d', $idx + 1) }}</td>
+                            <td>{{ $passenger['name'] ?? '' }}</td>
+                        @endif
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
     @endif
 
     {{-- Payment Summary Section (Client-Facing Only — Never Shows Supplier Cost) --}}
