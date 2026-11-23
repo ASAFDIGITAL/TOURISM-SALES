@@ -940,4 +940,13 @@ return [
     'select_or_add_hotel_placeholder' => 'בחר מלון מהרשימה או לחץ + להוספת מלון חדש...',
     'quick_new_hotel' => 'הוסף מלון חדש',
     'save_hotel_to_list' => 'שמור מלון לרשימה',
+    'prepared_for' => 'הוכן עבור',
+    'travel_dates' => 'תאריכי הנסיעה',
+    'trip_summary_label' => 'סיכום נסיעה',
+    'flight_details_heading' => 'פרטי הטיסות',
+    'hotel_stay_heading' => 'השהייה במלון',
+    'flight_direction' => 'כיוון',
+    'flight_route' => 'מסלול',
+    'local_departure' => 'המראה מקומית',
+    'itinerary_schedule_heading' => 'פירוט המסלול',
 ];

@@ -87,6 +87,11 @@ class TripMessagingAndItineraryTest extends TestCase
             $this->assertNotEmpty($pdf);
             $this->assertStringStartsWith('%PDF-', $pdf);
         }
+
+        // Arabic contextual glyph shaping connects letters (Presentation Forms-B) and forms Lam-Alef ligatures
+        $shapedArabic = \App\Helpers\PdfHelper::fixRtl('السلام عليكم');
+        $this->assertMatchesRegularExpression('/[\x{FE70}-\x{FEFF}]/u', $shapedArabic);
+        $this->assertStringContainsString("\u{FEFC}", $shapedArabic); // final Lam-Alef ligature in السلام
     }
 
     public function test_builds_hebrew_and_arabic_trip_summary_and_payment_reminder_messages(): void

@@ -940,4 +940,13 @@ return [
     'select_or_add_hotel_placeholder' => 'Select a saved hotel or click + to add a new one...',
     'quick_new_hotel' => 'Add New Hotel',
     'save_hotel_to_list' => 'Save Hotel to List',
+    'prepared_for' => 'Prepared For',
+    'travel_dates' => 'Travel Dates',
+    'trip_summary_label' => 'Trip Summary',
+    'flight_details_heading' => 'Flight Details',
+    'hotel_stay_heading' => 'Hotel Stay',
+    'flight_direction' => 'Direction',
+    'flight_route' => 'Route',
+    'local_departure' => 'Local Departure',
+    'itinerary_schedule_heading' => 'Trip Itinerary',
 ];

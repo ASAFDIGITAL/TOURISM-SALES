@@ -938,4 +938,13 @@ return [
     'select_or_add_hotel_placeholder' => 'اختر فندقاً من القائمة أو اضغط + لإضافة فندق جديد...',
     'quick_new_hotel' => 'إضافة فندق جديد',
     'save_hotel_to_list' => 'حفظ الفندق في القائمة',
+    'prepared_for' => 'أُعدّ لـ',
+    'travel_dates' => 'تواريخ السفر',
+    'trip_summary_label' => 'ملخص الرحلة',
+    'flight_details_heading' => 'تفاصيل الرحلات',
+    'hotel_stay_heading' => 'الإقامة الفندقية',
+    'flight_direction' => 'الاتجاه',
+    'flight_route' => 'المسار',
+    'local_departure' => 'المغادرة المحلية',
+    'itinerary_schedule_heading' => 'برنامج الرحلة',
 ];
