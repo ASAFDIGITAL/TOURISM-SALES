@@ -29,11 +29,16 @@ class AgentSettings extends Page
 
     public ?array $data = [];
 
+    public static function canAccess(): bool
+    {
+        return Auth::user()?->hasAgentPermission(\App\Models\User::PERM_MANAGE_SETTINGS) ?? false;
+    }
+
     public function mount(): void
     {
         $tenant = Auth::user()->getActiveTenant();
         if (!$tenant) {
-            $this->redirect('/');
+            $this->redirect('/agent');
             return;
         }
         $this->form->fill([
@@ -110,7 +115,7 @@ class AgentSettings extends Page
     {
         $tenant = Auth::user()->getActiveTenant();
         if (!$tenant) {
-            $this->redirect('/');
+            $this->redirect('/agent');
             return;
         }
         $data = $this->form->getState();

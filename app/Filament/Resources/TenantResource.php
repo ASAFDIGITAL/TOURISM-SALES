@@ -100,6 +100,37 @@ class TenantResource extends Resource
                     ->required(),
                 Forms\Components\Section::make(__('ui.subscription'))
                     ->schema([
+                        Forms\Components\Select::make('plan_id')
+                            ->label(__('ui.plan'))
+                            ->relationship('plan', 'name_he')
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->afterStateUpdated(function ($state, \Filament\Forms\Set $set): void {
+                                if (! $state) {
+                                    return;
+                                }
+                                $plan = \App\Models\Plan::find($state);
+                                if ($plan) {
+                                    $set('reminders_enabled', (bool) $plan->reminders_enabled);
+                                    $set('allowed_channels', $plan->getAllowedChannels());
+                                    $set('subscription_amount', $plan->monthly_price);
+                                }
+                            }),
+                        Forms\Components\TextInput::make('extra_seats')
+                            ->label(__('ui.extra_seats_label'))
+                            ->helperText(__('ui.extra_seats_helper'))
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0),
+                        Forms\Components\Toggle::make('is_trial')
+                            ->label(__('ui.is_trial_label'))
+                            ->default(false)
+                            ->live(),
+                        Forms\Components\DateTimePicker::make('trial_ends_at')
+                            ->label(__('ui.trial_ends_at'))
+                            ->native(false)
+                            ->visible(fn (\Filament\Forms\Get $get): bool => (bool) $get('is_trial')),
                         Forms\Components\Select::make('subscription_type')
                             ->label(__('ui.subscription_type'))
                             ->options([
@@ -165,6 +196,16 @@ class TenantResource extends Resource
                 Tables\Columns\TextColumn::make('email')
                     ->label(__('ui.email'))
                     ->searchable(),
+                Tables\Columns\TextColumn::make('plan.name_he')
+                    ->label(__('ui.plan'))
+                    ->badge()
+                    ->color('primary')
+                    ->placeholder('-'),
+                Tables\Columns\TextColumn::make('seats_usage')
+                    ->label(__('ui.team_seats'))
+                    ->state(fn (Tenant $record): string => $record->getActiveUsersCount() . ' / ' . $record->getMaxUsers())
+                    ->badge()
+                    ->color(fn (Tenant $record): string => $record->canAddMoreUsers() ? 'info' : 'warning'),
                 Tables\Columns\TextColumn::make('status')
                     ->label(__('ui.status'))
                     ->formatStateUsing(fn (string $state): string => __("ui.{$state}"))

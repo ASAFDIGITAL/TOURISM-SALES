@@ -1,4 +1,25 @@
+@if (app()->getLocale() === 'ar')
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+@endif
 <style>
+    @if (app()->getLocale() === 'ar')
+        :root {
+            --font-family: 'Cairo', sans-serif;
+        }
+
+        html[lang="ar"],
+        html[lang="ar"] body,
+        html[lang="ar"] .fi-body,
+        html[lang="ar"] button,
+        html[lang="ar"] input,
+        html[lang="ar"] select,
+        html[lang="ar"] textarea {
+            font-family: 'Cairo', sans-serif !important;
+        }
+    @endif
+
     /* =========================================================================
        TOURISM-SALES Modern Executive CRM Theme (Light + Dark, RTL + LTR)
        Brand Palette: Deep Navy #0F172A + Brand Amber #F59E0B + Cool Slate

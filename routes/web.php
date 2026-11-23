@@ -1,12 +1,32 @@
 <?php
 
+use App\Http\Controllers\AgencyRegistrationController;
 use App\Http\Controllers\AviationSearchController;
+use App\Http\Controllers\GoogleAuthController;
+use App\Http\Controllers\LandingController;
+use App\Http\Controllers\LegalPageController;
+use App\Http\Controllers\PayPlusController;
 use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\TenantImpersonationController;
+use App\Http\Middleware\SetLocaleMiddleware;
 use Illuminate\Support\Facades\Route;
 
-// All routing logic is now handled by Filament panels
-// Admin at / and Agent at /agent
+// Public Marketing Landing Page, Self-Registration & Legal Pages
+Route::middleware([SetLocaleMiddleware::class])->group(function () {
+    Route::get('/', [LandingController::class, 'index'])->name('landing');
+    Route::get('/register', [AgencyRegistrationController::class, 'show'])->name('register.show');
+    Route::post('/register', [AgencyRegistrationController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('register.store');
+    Route::get('/privacy-policy', [LegalPageController::class, 'privacy'])->name('legal.privacy');
+    Route::get('/accessibility', [LegalPageController::class, 'accessibility'])->name('legal.accessibility');
+    Route::get('/terms', [LegalPageController::class, 'terms'])->name('legal.terms');
+    Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
+    Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+});
+
+// Convenient fallback redirect for legacy /login bookmarks
+Route::redirect('/login', '/agent/login')->name('login');
 
 Route::post('/locale/{locale}', function (string $locale) {
     abort_unless(in_array($locale, ['he', 'ar', 'en'], true), 404);
@@ -34,4 +54,13 @@ Route::middleware(['auth'])->prefix('aviation')->name('aviation.')->group(functi
     Route::get('/airports', [AviationSearchController::class, 'airports'])->name('airports');
     Route::get('/airlines', [AviationSearchController::class, 'airlines'])->name('airlines');
     Route::get('/destinations', [AviationSearchController::class, 'destinations'])->name('destinations');
+});
+
+// PayPlus Recurring Standing Order & Digital Invoices (IPN Webhook + Checkout Return)
+Route::post('/webhooks/payplus', [PayPlusController::class, 'webhook'])->name('payplus.webhook');
+
+Route::middleware(['auth'])->prefix('billing/payplus')->name('payplus.')->group(function () {
+    Route::post('/checkout', [PayPlusController::class, 'checkout'])->name('checkout');
+    Route::get('/success', [PayPlusController::class, 'success'])->name('success');
+    Route::get('/failure', [PayPlusController::class, 'failure'])->name('failure');
 });

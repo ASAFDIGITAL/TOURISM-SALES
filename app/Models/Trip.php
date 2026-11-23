@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use App\Traits\BelongsToTenant;
 
 class Trip extends Model
@@ -12,6 +13,7 @@ class Trip extends Model
 
     protected $fillable = [
         'tenant_id',
+        'created_by_user_id',
         'customer_id',
         'title',
         'destination',
@@ -25,6 +27,20 @@ class Trip extends Model
         'passengers',
         'trip_summary',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Trip $trip): void {
+            if (! $trip->created_by_user_id && Auth::check()) {
+                $trip->created_by_user_id = Auth::id();
+            }
+        });
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
 
     protected $casts = [
         'start_date' => 'date',

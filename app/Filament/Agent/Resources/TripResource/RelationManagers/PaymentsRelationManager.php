@@ -24,6 +24,35 @@ class PaymentsRelationManager extends RelationManager
         return __('ui.payment');
     }
 
+    public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null && (
+            $user->hasAgentPermission(\App\Models\User::PERM_MANAGE_PAYMENTS)
+            || $user->hasAgentPermission(\App\Models\User::PERM_VIEW_FINANCIAL_STATS)
+        );
+    }
+
+    protected function canCreate(): bool
+    {
+        return auth()->user()?->hasAgentPermission(\App\Models\User::PERM_MANAGE_PAYMENTS) ?? false;
+    }
+
+    protected function canEdit(Model $record): bool
+    {
+        return auth()->user()?->hasAgentPermission(\App\Models\User::PERM_MANAGE_PAYMENTS) ?? false;
+    }
+
+    protected function canDelete(Model $record): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null
+            && $user->hasAgentPermission(\App\Models\User::PERM_MANAGE_PAYMENTS)
+            && $user->hasAgentPermission(\App\Models\User::PERM_DELETE_RECORDS);
+    }
+
     public function form(Form $form): Form
     {
         return $form

@@ -29,10 +29,13 @@ class TripsStatusChartWidget extends ChartWidget
 
     protected function getData(): array
     {
-        $tenantId = Auth::user()?->getActiveTenantId();
+        $user = Auth::user();
+        $tenantId = $user?->getActiveTenantId();
+        $canViewAll = $user?->hasAgentPermission(\App\Models\User::PERM_VIEW_ALL_TRIPS) ?? true;
 
         $counts = $tenantId
             ? Trip::where('tenant_id', $tenantId)
+                ->when(! $canViewAll, fn ($q) => $q->where('created_by_user_id', $user->id))
                 ->selectRaw('status, COUNT(*) as total')
                 ->groupBy('status')
                 ->pluck('total', 'status')

@@ -59,7 +59,8 @@ class AgentPanelProvider extends PanelProvider
             )
             ->renderHook(
                 PanelsRenderHook::CONTENT_START,
-                fn (): string => view('filament.agent.components.system-announcements-banner')->render(),
+                fn (): string => view('filament.agent.components.trial-banner')->render()
+                    . view('filament.agent.components.system-announcements-banner')->render(),
             )
             ->renderHook(
                 PanelsRenderHook::BODY_END,

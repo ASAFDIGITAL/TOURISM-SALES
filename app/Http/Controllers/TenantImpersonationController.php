@@ -43,6 +43,6 @@ class TenantImpersonationController extends Controller
 
         $user->stopImpersonatingTenant();
 
-        return redirect('/');
+        return redirect('/admin');
     }
 }

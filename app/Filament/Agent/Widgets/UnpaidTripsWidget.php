@@ -14,6 +14,11 @@ class UnpaidTripsWidget extends BaseWidget
 
     protected int | string | array $columnSpan = 'full';
 
+    public static function canView(): bool
+    {
+        return Auth::user()?->hasAgentPermission(\App\Models\User::PERM_VIEW_FINANCIAL_STATS) ?? false;
+    }
+
     public function getTableHeading(): string
     {
         return __('ui.unpaid_trips');

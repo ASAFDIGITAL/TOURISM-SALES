@@ -36,23 +36,33 @@ class DashboardHeroWidget extends Widget
             default => 'ui.greeting_evening',
         };
 
-        $customersCount = $tenantId ? Customer::where('tenant_id', $tenantId)->count() : 0;
+        $canViewAllTrips = $user?->hasAgentPermission(\App\Models\User::PERM_VIEW_ALL_TRIPS) ?? true;
+        $canViewFinancials = $user?->hasAgentPermission(\App\Models\User::PERM_VIEW_FINANCIAL_STATS) ?? true;
+        $canViewSalesReports = $user?->hasAgentPermission(\App\Models\User::PERM_VIEW_SALES_REPORTS) ?? true;
+        $canManageReminders = $user?->hasAgentPermission(\App\Models\User::PERM_MANAGE_REMINDERS) ?? true;
+
+        $customersCount = $tenantId
+            ? Customer::where('tenant_id', $tenantId)
+                ->when(! $canViewAllTrips, fn ($q) => $q->where('created_by_user_id', $user->id))
+                ->count()
+            : 0;
 
         $upcomingDeparturesCount = $tenantId
             ? Trip::where('tenant_id', $tenantId)
+                ->when(! $canViewAllTrips, fn ($q) => $q->where('created_by_user_id', $user->id))
                 ->where('status', '!=', 'cancelled')
                 ->whereDate('start_date', '>=', now()->toDateString())
                 ->whereDate('start_date', '<=', now()->addDays(14)->toDateString())
                 ->count()
             : 0;
 
-        $totalSales = $tenantId
+        $totalSales = ($tenantId && $canViewFinancials)
             ? (float) Trip::where('tenant_id', $tenantId)
                 ->where('status', '!=', 'cancelled')
                 ->sum('total_amount')
             : 0.0;
 
-        $totalCollected = $tenantId
+        $totalCollected = ($tenantId && $canViewFinancials)
             ? (float) Payment::where('tenant_id', $tenantId)->sum('amount')
             : 0.0;
 
@@ -68,7 +78,7 @@ class DashboardHeroWidget extends Widget
             default => '$',
         };
 
-        $remindersEnabled = $tenant?->hasRemindersEnabled() ?? true;
+        $remindersEnabled = ($tenant?->hasRemindersEnabled() ?? true) && $canManageReminders;
 
         return [
             'greeting' => __($greetingKey),
@@ -77,13 +87,14 @@ class DashboardHeroWidget extends Widget
             'todayLabel' => now()->translatedFormat('d/m/Y'),
             'customersCount' => $customersCount,
             'upcomingDeparturesCount' => $upcomingDeparturesCount,
+            'canViewFinancials' => $canViewFinancials,
             'collectionRate' => $collectionRate,
             'totalCollectedFormatted' => $symbol . number_format($totalCollected, 0),
             'remindersEnabled' => $remindersEnabled,
             'urls' => [
                 'new_trip' => TripResource::getUrl('create'),
                 'new_customer' => CustomerResource::getUrl('create'),
-                'sales_reports' => SalesReports::getUrl(),
+                'sales_reports' => $canViewSalesReports ? SalesReports::getUrl() : null,
                 'reminder_rules' => $remindersEnabled ? ReminderRuleResource::getUrl('index') : null,
                 'mobile_alerts' => MobileAppNotifications::getUrl(),
             ],

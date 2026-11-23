@@ -34,6 +34,11 @@ class ReceiptResource extends Resource
         return __('ui.receipts_report');
     }
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->hasAgentPermission(\App\Models\User::PERM_VIEW_RECEIPTS) ?? false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form

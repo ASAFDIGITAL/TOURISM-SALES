@@ -47,7 +47,7 @@ class AdminTenantImpersonationTest extends TestCase
 
         $this->actingAs($admin)
             ->get('/agent')
-            ->assertRedirect('/');
+            ->assertRedirect('/admin');
     }
 
     public function test_super_admin_can_enter_tenant_panel_view_scoped_data_and_create_records(): void
@@ -150,12 +150,12 @@ class AdminTenantImpersonationTest extends TestCase
         // Leaving impersonation returns to admin panel and blocks /agent again
         $this->actingAs($admin)
             ->post(route('admin.impersonate.leave'))
-            ->assertRedirect('/')
+            ->assertRedirect('/admin')
             ->assertSessionMissing(User::IMPERSONATED_TENANT_SESSION_KEY);
 
         $this->actingAs($admin)
             ->get('/agent')
-            ->assertRedirect('/');
+            ->assertRedirect('/admin');
     }
 
     public function test_super_admin_can_enter_suspended_tenant_without_users(): void

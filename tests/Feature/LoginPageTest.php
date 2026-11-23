@@ -8,7 +8,7 @@ class LoginPageTest extends TestCase
 {
     public function test_login_page_defaults_to_hebrew_with_open_sans_and_split_hero_image(): void
     {
-        $response = $this->get('/login');
+        $response = $this->get('/agent/login');
 
         $response->assertOk();
         $response->assertSee('lang="he"', false);
@@ -25,22 +25,22 @@ class LoginPageTest extends TestCase
 
     public function test_guest_can_switch_language_on_login_page(): void
     {
-        $this->from('/login')
+        $this->from('/agent/login')
             ->post(route('locale.switch', 'en'))
-            ->assertRedirect('/login')
+            ->assertRedirect('/agent/login')
             ->assertSessionHas('locale', 'en');
 
-        $response = $this->get('/login');
+        $response = $this->get('/agent/login');
         $response->assertOk();
         $response->assertSee('lang="en"', false);
         $response->assertSee('Sign in');
 
-        $this->from('/login')
+        $this->from('/agent/login')
             ->post(route('locale.switch', 'ar'))
-            ->assertRedirect('/login')
+            ->assertRedirect('/agent/login')
             ->assertSessionHas('locale', 'ar');
 
-        $responseAr = $this->get('/login');
+        $responseAr = $this->get('/agent/login');
         $responseAr->assertOk();
         $responseAr->assertSee('lang="ar"', false);
         $responseAr->assertSee('تسجيل الدخول');

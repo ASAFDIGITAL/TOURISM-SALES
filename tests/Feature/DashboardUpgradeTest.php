@@ -97,7 +97,7 @@ class DashboardUpgradeTest extends TestCase
             'role' => 'super_admin',
         ]);
 
-        $response = $this->actingAs($admin)->get('/');
+        $response = $this->actingAs($admin)->get('/admin');
 
         $response->assertOk()
             ->assertDontSee('<h1', false)

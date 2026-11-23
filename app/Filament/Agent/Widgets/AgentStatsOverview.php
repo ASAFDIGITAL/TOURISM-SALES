@@ -14,8 +14,56 @@ class AgentStatsOverview extends BaseWidget
 
     protected function getStats(): array
     {
-        $tenantId = Auth::user()->getActiveTenantId();
-        $tenant = Auth::user()->getActiveTenant();
+        $user = Auth::user();
+        $tenantId = $user->getActiveTenantId();
+        $tenant = $user->getActiveTenant();
+
+        $canViewFinancials = $user->hasAgentPermission(\App\Models\User::PERM_VIEW_FINANCIAL_STATS);
+        $canViewAllTrips = $user->hasAgentPermission(\App\Models\User::PERM_VIEW_ALL_TRIPS);
+
+        $tripsSparkline = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $m = now()->startOfMonth()->subMonths($i);
+            $tripsSparkline[] = Trip::where('tenant_id', $tenantId)
+                ->when(! $canViewAllTrips, fn ($q) => $q->where('created_by_user_id', $user->id))
+                ->whereYear('created_at', $m->year)
+                ->whereMonth('created_at', $m->month)
+                ->count();
+        }
+
+        $activeTrips = Trip::where('tenant_id', $tenantId)
+            ->when(! $canViewAllTrips, fn ($q) => $q->where('created_by_user_id', $user->id))
+            ->whereIn('status', ['confirmed', 'draft'])
+            ->count();
+
+        if (! $canViewFinancials) {
+            $customersCount = \App\Models\Customer::where('tenant_id', $tenantId)
+                ->when(! $canViewAllTrips, fn ($q) => $q->where('created_by_user_id', $user->id))
+                ->count();
+
+            $upcomingDepartures = Trip::where('tenant_id', $tenantId)
+                ->when(! $canViewAllTrips, fn ($q) => $q->where('created_by_user_id', $user->id))
+                ->where('status', '!=', 'cancelled')
+                ->whereDate('start_date', '>=', now()->toDateString())
+                ->whereDate('start_date', '<=', now()->addDays(14)->toDateString())
+                ->count();
+
+            return [
+                Stat::make(__('ui.active_trips'), $activeTrips)
+                    ->description(__('ui.active_trips_desc'))
+                    ->icon('heroicon-o-globe-americas')
+                    ->chart($tripsSparkline)
+                    ->color('info'),
+                Stat::make(__('ui.customers_in_crm'), $customersCount)
+                    ->description(__('ui.customers'))
+                    ->icon('heroicon-o-users')
+                    ->color('primary'),
+                Stat::make(__('ui.upcoming_departures_14d'), $upcomingDepartures)
+                    ->description(__('ui.upcoming_departures'))
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('warning'),
+            ];
+        }
 
         $activeTripsQuery = Trip::where('tenant_id', $tenantId)
             ->where('status', '!=', 'cancelled')
@@ -37,22 +85,13 @@ class AgentStatsOverview extends BaseWidget
             ->sum('amount');
 
         $revenueSparkline = [];
-        $tripsSparkline = [];
         for ($i = 5; $i >= 0; $i--) {
             $m = now()->startOfMonth()->subMonths($i);
             $revenueSparkline[] = (float) Payment::where('tenant_id', $tenantId)
                 ->whereYear('paid_at', $m->year)
                 ->whereMonth('paid_at', $m->month)
                 ->sum('amount');
-            $tripsSparkline[] = Trip::where('tenant_id', $tenantId)
-                ->whereYear('created_at', $m->year)
-                ->whereMonth('created_at', $m->month)
-                ->count();
         }
-
-        $activeTrips = Trip::where('tenant_id', $tenantId)
-            ->whereIn('status', ['confirmed', 'draft'])
-            ->count();
 
         $currency = $tenant?->currency ?? 'USD';
         $symbol = match ($currency) {

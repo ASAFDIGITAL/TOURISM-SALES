@@ -70,6 +70,10 @@ class MonthlyTripsWidget extends BaseWidget
         return $table
             ->query(
                 Trip::where('tenant_id', Auth::user()->getActiveTenantId())
+                    ->when(
+                        ! Auth::user()->hasAgentPermission(\App\Models\User::PERM_VIEW_ALL_TRIPS),
+                        fn ($query) => $query->where('created_by_user_id', Auth::id())
+                    )
                     ->when($this->fromDate, fn ($query) => $query->whereDate('start_date', '>=', $this->fromDate))
                     ->when($this->toDate, fn ($query) => $query->whereDate('start_date', '<=', $this->toDate))
             )

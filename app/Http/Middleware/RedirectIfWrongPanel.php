@@ -30,8 +30,15 @@ class RedirectIfWrongPanel
         if ($user->role === 'agent') {
             if ($user->tenant && $user->tenant->status !== 'active') {
                 auth()->logout();
-                return redirect('/login')->withErrors([
+                return redirect('/agent/login')->withErrors([
                     'email' => __('ui.suspended_message'),
+                ]);
+            }
+
+            if ($user->tenant && $user->tenant->isTrialExpired()) {
+                auth()->logout();
+                return redirect('/agent/login')->withErrors([
+                    'email' => __('ui.trial_expired_message'),
                 ]);
             }
 
@@ -42,12 +49,12 @@ class RedirectIfWrongPanel
 
         if ($user->role === 'super_admin' && $panel->getId() === 'agent') {
             if (!$user->isImpersonatingTenant()) {
-                return redirect('/');
+                return redirect('/admin');
             }
 
             if (!$user->getActiveTenant()) {
                 $user->stopImpersonatingTenant();
-                return redirect('/');
+                return redirect('/admin');
             }
         }
 

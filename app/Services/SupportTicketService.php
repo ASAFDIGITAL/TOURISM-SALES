@@ -166,7 +166,7 @@ class SupportTicketService
         try {
             $ticketUrl = SupportTicketResource::getUrl('view', ['record' => $ticket], panel: 'admin');
         } catch (\Throwable) {
-            $ticketUrl = '/support-tickets/' . $ticket->id;
+            $ticketUrl = '/admin/support-tickets/' . $ticket->id;
         }
 
         foreach ($admins as $admin) {

@@ -34,6 +34,63 @@ class SalesReports extends Page implements HasTable
         return __('ui.sales_report');
     }
 
+    public static function canAccess(): bool
+    {
+        return Auth::user()?->hasAgentPermission(\App\Models\User::PERM_VIEW_SALES_REPORTS) ?? false;
+    }
+
+    public function getEmployeePerformance(): array
+    {
+        $user = Auth::user();
+        $tenant = $user?->getActiveTenant();
+        $tenantId = $user?->getActiveTenantId();
+
+        if (! $tenantId || ! $user?->isAgencyOwner() || ! ($tenant?->canUseEmployeeReports() ?? true)) {
+            return [];
+        }
+
+        $currency = $tenant?->currency ?? 'ILS';
+        $symbol = match ($currency) {
+            'ILS' => '₪',
+            'EUR' => '€',
+            'GBP' => '£',
+            default => '$',
+        };
+
+        $trips = Trip::with(['payments', 'createdBy'])
+            ->where('tenant_id', $tenantId)
+            ->when($this->fromDate, fn ($q) => $q->whereDate('created_at', '>=', $this->fromDate))
+            ->when($this->toDate, fn ($q) => $q->whereDate('created_at', '<=', $this->toDate))
+            ->where('status', '!=', 'cancelled')
+            ->get();
+
+        $grouped = $trips->groupBy(fn (Trip $t) => $t->created_by_user_id ?: 0);
+
+        $rows = [];
+        foreach ($grouped as $userId => $userTrips) {
+            $repName = $userTrips->first()?->createdBy?->name ?? __('ui.unassigned_rep');
+            $sales = (float) $userTrips->sum('total_amount');
+            $collected = (float) $userTrips->sum(fn (Trip $t) => (float) $t->payments->sum('amount'));
+            $balance = max(0, $sales - $collected);
+            $rate = $sales > 0 ? (int) min(100, round(($collected / $sales) * 100)) : 100;
+
+            $rows[] = [
+                'name' => $repName,
+                'trips_count' => $userTrips->count(),
+                'sales_raw' => $sales,
+                'sales' => $symbol . number_format($sales, 2),
+                'collected' => $symbol . number_format($collected, 2),
+                'balance' => $symbol . number_format($balance, 2),
+                'balance_raw' => $balance,
+                'rate' => $rate,
+            ];
+        }
+
+        usort($rows, fn ($a, $b) => $b['sales_raw'] <=> $a['sales_raw']);
+
+        return $rows;
+    }
+
     public function mount(): void
     {
         $this->fromDate = now()->startOfMonth()->format('Y-m-d');

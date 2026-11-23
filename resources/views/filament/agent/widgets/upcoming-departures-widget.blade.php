@@ -54,17 +54,19 @@
                             </div>
                         </div>
 
-                        <div style="flex-shrink: 0;">
-                            @if ($item['balance'] > 0)
-                                <span class="ts-support-badge ts-badge-open">
-                                    {{ __('ui.balance_due_short', ['amount' => $item['balance_formatted']]) }}
-                                </span>
-                            @else
-                                <span class="ts-support-badge ts-badge-closed">
-                                    {{ __('ui.paid_in_full') }}
-                                </span>
-                            @endif
-                        </div>
+                        @if ($canViewFinancials)
+                            <div style="flex-shrink: 0;">
+                                @if ($item['balance'] > 0)
+                                    <span class="ts-support-badge ts-badge-open">
+                                        {{ __('ui.balance_due_short', ['amount' => $item['balance_formatted']]) }}
+                                    </span>
+                                @else
+                                    <span class="ts-support-badge ts-badge-closed">
+                                        {{ __('ui.paid_in_full') }}
+                                    </span>
+                                @endif
+                            </div>
+                        @endif
                     </a>
                 @empty
                     <div class="ts-dash-empty">

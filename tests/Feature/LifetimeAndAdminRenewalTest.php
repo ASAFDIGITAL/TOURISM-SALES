@@ -73,9 +73,9 @@ class LifetimeAndAdminRenewalTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get('/admin-mobile-notifications')
+            ->get('/admin/admin-mobile-notifications')
             ->assertOk()
-            ->assertSee('manifest.webmanifest', false);
+            ->assertSee('manifest.json', false);
 
         $tenant = Tenant::create([
             'name' => 'Renew Agency',

@@ -3,7 +3,7 @@
     "name": "TOURISM-SALES",
     "short_name": "TourismSales",
     "description": "מערכת חכמה לניהול סוכנויות תיירות, לקוחות וטיולים",
-    "start_url": "/",
+    "start_url": "/agent",
     "scope": "/",
     "display": "standalone",
     "orientation": "portrait-primary",

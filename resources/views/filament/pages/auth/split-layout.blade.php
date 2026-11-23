@@ -16,7 +16,11 @@
             display: flex;
             min-height: 100vh;
             width: 100%;
-            font-family: 'Open Sans', sans-serif;
+            @if ($currentLocale === 'ar')
+                font-family: 'Cairo', sans-serif;
+            @else
+                font-family: 'Open Sans', sans-serif;
+            @endif
             background-color: #ffffff;
         }
 
@@ -319,4 +323,6 @@
             </div>
         </div>
     </div>
+
+    @include('components.site-compliance')
 </x-filament-panels::layout.base>

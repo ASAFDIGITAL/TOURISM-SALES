@@ -77,6 +77,49 @@
             </x-filament::section>
         </div>
 
+        @php
+            $employeeRows = $this->getEmployeePerformance();
+        @endphp
+
+        @if (count($employeeRows) > 0)
+            <x-filament::section>
+                <x-slot name="heading">
+                    {{ __('ui.employee_performance_reports') }}
+                </x-slot>
+
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid #e2e8f0; text-align: start;">
+                                <th style="padding: 10px 12px; text-align: start;">{{ __('ui.staff_member') }}</th>
+                                <th style="padding: 10px 12px; text-align: start;">{{ __('ui.trips') }}</th>
+                                <th style="padding: 10px 12px; text-align: start;">{{ __('ui.total_sales_volume') }}</th>
+                                <th style="padding: 10px 12px; text-align: start;">{{ __('ui.total_collected') }}</th>
+                                <th style="padding: 10px 12px; text-align: start;">{{ __('ui.open_balances') }}</th>
+                                <th style="padding: 10px 12px; text-align: start;">{{ __('ui.collection_rate') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($employeeRows as $row)
+                                <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.18);">
+                                    <td style="padding: 10px 12px; font-weight: 700;">{{ $row['name'] }}</td>
+                                    <td style="padding: 10px 12px;">{{ $row['trips_count'] }}</td>
+                                    <td style="padding: 10px 12px; font-weight: 600;">{{ $row['sales'] }}</td>
+                                    <td style="padding: 10px 12px; color: #10b981; font-weight: 600;">{{ $row['collected'] }}</td>
+                                    <td style="padding: 10px 12px; color: {{ $row['balance_raw'] > 0 ? '#e11d48' : '#10b981' }}; font-weight: 600;">{{ $row['balance'] }}</td>
+                                    <td style="padding: 10px 12px;">
+                                        <span class="ts-support-badge {{ $row['rate'] >= 80 ? 'ts-badge-closed' : 'ts-badge-waiting_agent' }}">
+                                            {{ $row['rate'] }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </x-filament::section>
+        @endif
+
         <div class="mt-8">
             <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">{{ __('ui.transactions_list') ?? 'פירוט עסקאות' }}</h3>
             {{ $this->table }}

@@ -43,9 +43,14 @@ class UpcomingDeparturesWidget extends Widget
             default => '$',
         };
 
+        $canViewAll = $user?->hasAgentPermission(\App\Models\User::PERM_VIEW_ALL_TRIPS) ?? true;
+        $canViewFinancials = $user?->hasAgentPermission(\App\Models\User::PERM_VIEW_FINANCIAL_STATS) ?? true;
+        $canManageReminders = $user?->hasAgentPermission(\App\Models\User::PERM_MANAGE_REMINDERS) ?? true;
+
         $departures = $tenantId
             ? Trip::query()
                 ->where('tenant_id', $tenantId)
+                ->when(! $canViewAll, fn ($q) => $q->where('created_by_user_id', $user->id))
                 ->where('status', '!=', 'cancelled')
                 ->whereDate('start_date', '>=', now()->toDateString())
                 ->whereDate('start_date', '<=', now()->addDays(21)->toDateString())
@@ -71,7 +76,7 @@ class UpcomingDeparturesWidget extends Widget
                 })
             : collect();
 
-        $remindersEnabled = $tenant?->hasRemindersEnabled() ?? true;
+        $remindersEnabled = ($tenant?->hasRemindersEnabled() ?? true) && $canManageReminders;
 
         $reminders = ($tenantId && $remindersEnabled)
             ? Reminder::query()
@@ -87,6 +92,7 @@ class UpcomingDeparturesWidget extends Widget
             'departures' => $departures,
             'reminders' => $reminders,
             'remindersEnabled' => $remindersEnabled,
+            'canViewFinancials' => $canViewFinancials,
             'allTripsUrl' => TripResource::getUrl('index'),
             'allRemindersUrl' => $remindersEnabled ? ReminderResource::getUrl('index') : null,
         ];

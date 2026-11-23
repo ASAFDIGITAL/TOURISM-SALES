@@ -37,6 +37,28 @@ class TripResource extends Resource
         return __('ui.trips');
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user && ! $user->hasAgentPermission(\App\Models\User::PERM_VIEW_ALL_TRIPS)) {
+            $query->where('created_by_user_id', $user->id);
+        }
+
+        return $query;
+    }
+
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return auth()->user()?->hasAgentPermission(\App\Models\User::PERM_DELETE_RECORDS) ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth()->user()?->hasAgentPermission(\App\Models\User::PERM_DELETE_RECORDS) ?? false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -140,6 +162,17 @@ class TripResource extends Resource
                                                 default => '$',
                                             })
                                             ->required(),
+                                        Forms\Components\Select::make('created_by_user_id')
+                                            ->label(__('ui.assigned_sales_rep'))
+                                            ->options(fn (): array => \App\Models\User::query()
+                                                ->where('tenant_id', auth()->user()?->getActiveTenantId())
+                                                ->where('role', 'agent')
+                                                ->orderBy('name')
+                                                ->pluck('name', 'id')
+                                                ->all())
+                                            ->default(fn () => auth()->id())
+                                            ->searchable()
+                                            ->visible(fn (): bool => auth()->user()?->isAgencyOwner() ?? false),
                                     ]),
                                 Forms\Components\Textarea::make('notes')
                                     ->label(__('ui.notes'))

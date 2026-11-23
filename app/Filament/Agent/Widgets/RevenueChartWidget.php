@@ -20,6 +20,11 @@ class RevenueChartWidget extends ChartWidget
 
     public ?string $filter = '6';
 
+    public static function canView(): bool
+    {
+        return Auth::user()?->hasAgentPermission(\App\Models\User::PERM_VIEW_FINANCIAL_STATS) ?? false;
+    }
+
     public function getHeading(): string
     {
         return __('ui.revenue_trend_6m');

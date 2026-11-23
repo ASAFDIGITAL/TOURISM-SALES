@@ -37,7 +37,10 @@ class ReminderResource extends Resource
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->getActiveTenant()?->hasRemindersEnabled() ?? true;
+        $user = auth()->user();
+
+        return ($user?->getActiveTenant()?->hasRemindersEnabled() ?? true)
+            && ($user?->hasAgentPermission(\App\Models\User::PERM_MANAGE_REMINDERS) ?? false);
     }
 
     /**

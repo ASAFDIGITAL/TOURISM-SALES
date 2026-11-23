@@ -267,4 +267,32 @@
             </form>
         @endif
     @endif
+
+    <div style="margin-top: 1.1rem;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:0.85rem; color:#94a3b8; font-size:0.78rem;">
+            <span style="flex:1; height:1px; background:rgba(148,163,184,0.3);"></span>
+            <span>{{ __('ui.or_divider') }}</span>
+            <span style="flex:1; height:1px; background:rgba(148,163,184,0.3);"></span>
+        </div>
+
+        <a
+            href="{{ route('auth.google.redirect') }}"
+            style="display:flex; align-items:center; justify-content:center; gap:10px; width:100%; padding:0.65rem 1rem; border-radius:0.55rem; border:1px solid #cbd5e1; background:#ffffff; color:#0f172a; font-size:0.9rem; font-weight:700; text-decoration:none; box-shadow:0 1px 2px rgba(15,23,42,0.06);"
+        >
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M23.745 12.27c0-.79-.07-1.54-.19-2.27h-11.3v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/>
+                <path fill="#34A853" d="M12.255 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96h-3.98v3.09C3.515 21.3 7.565 24 12.255 24z"/>
+                <path fill="#FBBC05" d="M5.525 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62h-3.98a11.86 11.86 0 0 0 0 10.76l3.98-3.09z"/>
+                <path fill="#EA4335" d="M12.255 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C18.205 1.19 15.495 0 12.255 0c-4.69 0-8.74 2.7-10.71 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/>
+            </svg>
+            <span>{{ __('ui.continue_with_google') }}</span>
+        </a>
+    </div>
+
+    <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(148, 163, 184, 0.25); text-align: center; font-size: 0.85rem;">
+        <span style="opacity: 0.75;">{{ __('ui.no_account_yet_prompt') }}</span>
+        <a href="{{ route('register.show') }}" style="color: #F59E0B; font-weight: 700; text-decoration: none; margin-inline-start: 4px;">
+            {{ __('ui.start_14_day_trial') }}
+        </a>
+    </div>
 </div>

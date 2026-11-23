@@ -43,7 +43,7 @@ class PushSubscriptionController extends Controller
                     user: $user,
                     title: __('ui.push_welcome_title', [], $lang),
                     body: __('ui.push_welcome_body', [], $lang),
-                    url: $user->isSuperAdmin() ? '/' : '/agent',
+                    url: $user->isSuperAdmin() ? '/admin' : '/agent',
                     tag: 'tourism-sales-welcome',
                     locale: $lang,
                 );

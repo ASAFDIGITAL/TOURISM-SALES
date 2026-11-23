@@ -31,6 +31,28 @@ class CustomerResource extends Resource
         return __('ui.customers');
     }
 
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user && ! $user->hasAgentPermission(\App\Models\User::PERM_VIEW_ALL_TRIPS)) {
+            $query->where('created_by_user_id', $user->id);
+        }
+
+        return $query;
+    }
+
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return auth()->user()?->hasAgentPermission(\App\Models\User::PERM_DELETE_RECORDS) ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return auth()->user()?->hasAgentPermission(\App\Models\User::PERM_DELETE_RECORDS) ?? false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form
