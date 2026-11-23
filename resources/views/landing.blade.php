@@ -738,15 +738,23 @@
                                 <span class="plan-check">✓</span>
                                 <span>{{ __('ui.plan_feat_push_app') }}</span>
                             </li>
+                            @if ($plan->monthly_email_limit !== null)
+                                <li>
+                                    <span class="plan-check">✓</span>
+                                    <span>{{ __('ui.plan_feat_monthly_emails', ['count' => $plan->monthly_email_limit]) }}</span>
+                                </li>
+                            @endif
+                            @if ($plan->monthly_sms_limit !== null)
+                                <li>
+                                    <span class="plan-check">✓</span>
+                                    <span>{{ __('ui.plan_feat_monthly_sms', ['count' => $plan->monthly_sms_limit]) }}</span>
+                                </li>
+                            @endif
                             <li>
                                 <span class="plan-check">{{ $plan->can_use_employee_reports ? '✓' : '•' }}</span>
                                 <span style="{{ $plan->can_use_employee_reports ? '' : 'opacity:0.65;' }}">
                                     {{ $plan->can_use_employee_reports ? __('ui.plan_feat_emp_reports_yes') : __('ui.plan_feat_emp_reports_no') }}
                                 </span>
-                            </li>
-                            <li>
-                                <span class="plan-check">{{ $hasSms ? '✓' : '+' }}</span>
-                                <span>{{ $hasSms ? __('ui.plan_feat_sms_included') : __('ui.plan_feat_sms_addon') }}</span>
                             </li>
                         </ul>
 

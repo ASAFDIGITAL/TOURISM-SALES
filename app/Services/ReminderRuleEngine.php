@@ -45,12 +45,15 @@ class ReminderRuleEngine
                     continue;
                 }
 
-                $this->dispatchRuleForTrip($rule, $trip);
+                $dispatchResult = $this->dispatchRuleForTrip($rule, $trip);
 
                 ReminderRuleLog::create([
                     'reminder_rule_id' => $rule->id,
                     'trip_id' => $trip->id,
                     'sent_at' => now(),
+                    'channels_sent' => implode(',', $dispatchResult['channels']),
+                    'status' => $dispatchResult['status'],
+                    'note' => count($dispatchResult['notes']) > 0 ? implode(', ', $dispatchResult['notes']) : null,
                 ]);
 
                 $triggeredCount++;
@@ -315,7 +318,10 @@ class ReminderRuleEngine
         return $created;
     }
 
-    private function dispatchRuleForTrip(ReminderRule $rule, Trip $trip): void
+    /**
+     * @return array{channels: array<int, string>, status: string, notes: array<int, string>}
+     */
+    private function dispatchRuleForTrip(ReminderRule $rule, Trip $trip): array
     {
         $payload = $this->buildMessageForRule($rule, $trip);
         $tripUrl = \App\Filament\Agent\Resources\TripResource::getUrl('edit', ['record' => $trip->id], panel: 'agent');
@@ -325,6 +331,8 @@ class ReminderRuleEngine
         ], true);
 
         $tenant = $trip->tenant;
+        $channelsSent = [];
+        $notes = [];
 
         // 1. Notify Agents (In-App + Phone Push)
         if (in_array($rule->recipient_type, ['agent', 'both'], true)) {
@@ -367,31 +375,61 @@ class ReminderRuleEngine
 
                 App::setLocale($originalLocale);
             }
+
+            if ($agents->isNotEmpty()) {
+                $channelsSent[] = 'push';
+            }
         }
 
-        // 2. Notify Customer (Email / SMS via InforU)
+        // 2. Notify Customer (Email / SMS via InforU) with monthly plan quota enforcement
         if (in_array($rule->recipient_type, ['customer', 'both'], true) && $trip->customer) {
             $canEmail = !$tenant || $tenant->canUseChannel('email');
             $canSms = !$tenant || $tenant->canUseChannel('sms');
 
             if ($canEmail && $rule->usesChannel('email') && filled($trip->customer->email)) {
-                $this->tripMessageService->sendEmail(
-                    trip: $trip,
-                    recipientEmail: $trip->customer->email,
-                    subject: $payload['subject'],
-                    body: $payload['body'],
-                    locale: $payload['lang'],
-                    attachItinerary: $rule->template_type === TripMessageService::TEMPLATE_TRIP_SUMMARY,
-                );
+                if ($tenant && ! $tenant->hasMonthlyEmailQuota()) {
+                    $notes[] = 'email_quota_exceeded';
+                } else {
+                    $sent = $this->tripMessageService->sendEmail(
+                        trip: $trip,
+                        recipientEmail: $trip->customer->email,
+                        subject: $payload['subject'],
+                        body: $payload['body'],
+                        locale: $payload['lang'],
+                        attachItinerary: $rule->template_type === TripMessageService::TEMPLATE_TRIP_SUMMARY,
+                    );
+
+                    if ($sent) {
+                        $channelsSent[] = 'email';
+                    } else {
+                        $notes[] = 'email_quota_exceeded';
+                    }
+                }
             }
 
             if ($canSms && $rule->usesChannel('sms') && filled($trip->customer->phone)) {
-                $smsText = str_replace('*', '', $payload['body']);
-                $result = $this->smsService->sendSms($trip->customer->phone, $smsText);
-                if ($result['success']) {
-                    $this->tripMessageService->logSentMessage($trip, 'sms', $smsText);
+                if ($tenant && ! $tenant->hasMonthlySmsQuota()) {
+                    $notes[] = 'sms_quota_exceeded';
+                } else {
+                    $smsText = str_replace('*', '', $payload['body']);
+                    $result = $this->smsService->sendSms($trip->customer->phone, $smsText);
+                    if ($result['success']) {
+                        $this->tripMessageService->logSentMessage($trip, 'sms', $smsText);
+                        $channelsSent[] = 'sms';
+                    }
                 }
             }
         }
+
+        $status = 'sent';
+        if (count($notes) > 0) {
+            $status = count($channelsSent) > 0 ? 'partial' : 'quota_exceeded';
+        }
+
+        return [
+            'channels' => array_values(array_unique($channelsSent)),
+            'status' => $status,
+            'notes' => array_values(array_unique($notes)),
+        ];
     }
 }

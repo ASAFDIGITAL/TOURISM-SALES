@@ -20,6 +20,8 @@ class Tenant extends Model
         'subscription_type',
         'plan_id',
         'extra_seats',
+        'extra_email_quota',
+        'extra_sms_quota',
         'is_trial',
         'trial_ends_at',
         'logo_path',
@@ -43,6 +45,8 @@ class Tenant extends Model
 
     protected $casts = [
         'extra_seats' => 'integer',
+        'extra_email_quota' => 'integer',
+        'extra_sms_quota' => 'integer',
         'is_trial' => 'boolean',
         'trial_ends_at' => 'datetime',
         'reminders_enabled' => 'boolean',
@@ -150,6 +154,87 @@ class Tenant extends Model
         }
 
         return in_array($channel, $this->getAllowedChannels(), true);
+    }
+
+    public function getMonthlyEmailLimit(): ?int
+    {
+        if (! $this->plan || $this->plan->monthly_email_limit === null) {
+            return null;
+        }
+
+        return max(0, (int) $this->plan->monthly_email_limit + (int) $this->extra_email_quota);
+    }
+
+    public function getMonthlySmsLimit(): ?int
+    {
+        if (! $this->plan || $this->plan->monthly_sms_limit === null) {
+            return null;
+        }
+
+        return max(0, (int) $this->plan->monthly_sms_limit + (int) $this->extra_sms_quota);
+    }
+
+    public function getMonthlySentCount(string $channel, ?\Carbon\Carbon $month = null): int
+    {
+        $target = $month ? $month->copy() : now();
+
+        return Reminder::withoutGlobalScopes()
+            ->where('tenant_id', $this->id)
+            ->where('channel', $channel)
+            ->where('status', 'sent')
+            ->whereBetween('created_at', [
+                $target->copy()->startOfMonth(),
+                $target->copy()->endOfMonth(),
+            ])
+            ->count();
+    }
+
+    public function getMonthlyEmailSentCount(?\Carbon\Carbon $month = null): int
+    {
+        return $this->getMonthlySentCount('email', $month);
+    }
+
+    public function getMonthlySmsSentCount(?\Carbon\Carbon $month = null): int
+    {
+        return $this->getMonthlySentCount('sms', $month);
+    }
+
+    public function getRemainingMonthlyEmails(): ?int
+    {
+        $limit = $this->getMonthlyEmailLimit();
+
+        return $limit === null ? null : max(0, $limit - $this->getMonthlyEmailSentCount());
+    }
+
+    public function getRemainingMonthlySms(): ?int
+    {
+        $limit = $this->getMonthlySmsLimit();
+
+        return $limit === null ? null : max(0, $limit - $this->getMonthlySmsSentCount());
+    }
+
+    public function hasMonthlyEmailQuota(): bool
+    {
+        $limit = $this->getMonthlyEmailLimit();
+
+        return $limit === null || $this->getMonthlyEmailSentCount() < $limit;
+    }
+
+    public function hasMonthlySmsQuota(): bool
+    {
+        $limit = $this->getMonthlySmsLimit();
+
+        return $limit === null || $this->getMonthlySmsSentCount() < $limit;
+    }
+
+    public function canSendEmailNow(): bool
+    {
+        return $this->canUseChannel('email') && $this->hasMonthlyEmailQuota();
+    }
+
+    public function canSendSmsNow(): bool
+    {
+        return $this->canUseChannel('sms') && $this->hasMonthlySmsQuota();
     }
 
     public function users()

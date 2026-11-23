@@ -61,7 +61,13 @@ class TripMessageService
         string $locale = 'he',
         bool $attachItinerary = false,
         ?string $senderName = null,
-    ): void {
+        bool $logReminder = true,
+    ): bool {
+        $tenant = $trip->tenant;
+        if ($tenant && ! $tenant->hasMonthlyEmailQuota()) {
+            return false;
+        }
+
         $pdfContent = null;
         $pdfFilename = null;
 
@@ -81,7 +87,11 @@ class TripMessageService
             senderName: $senderName ?: $trip->tenant?->name,
         ));
 
-        $this->logSentMessage($trip, 'email', $body);
+        if ($logReminder) {
+            $this->logSentMessage($trip, 'email', $body);
+        }
+
+        return true;
     }
 
     public function logSentMessage(Trip $trip, string $channel, string $body): Reminder

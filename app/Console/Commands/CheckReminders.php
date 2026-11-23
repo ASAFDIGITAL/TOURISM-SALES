@@ -88,25 +88,40 @@ class CheckReminders extends Command
                 }
             }
 
-            // 2. Deliver to Customer (Email or SMS)
+            // 2. Deliver to Customer (Email or SMS) with monthly quota enforcement
+            $blockedByQuota = false;
             if (in_array($recipientType, ['customer', 'both'], true) && $trip && $trip->customer) {
                 $lang = $reminder->message_language ?: ($trip->tenant?->language ?: 'he');
 
                 if ($reminder->channel === 'email' && (!$tenant || $tenant->canUseChannel('email')) && filled($trip->customer->email)) {
-                    $tripMessageService->sendEmail(
-                        trip: $trip,
-                        recipientEmail: $trip->customer->email,
-                        subject: $trip->title,
-                        body: $reminder->message,
-                        locale: $lang,
-                        attachItinerary: false,
-                    );
+                    if ($tenant && ! $tenant->hasMonthlyEmailQuota()) {
+                        $blockedByQuota = true;
+                    } else {
+                        $sent = $tripMessageService->sendEmail(
+                            trip: $trip,
+                            recipientEmail: $trip->customer->email,
+                            subject: $trip->title,
+                            body: $reminder->message,
+                            locale: $lang,
+                            attachItinerary: false,
+                            logReminder: false,
+                        );
+                        if (! $sent) {
+                            $blockedByQuota = true;
+                        }
+                    }
                 } elseif ($reminder->channel === 'sms' && (!$tenant || $tenant->canUseChannel('sms')) && filled($trip->customer->phone)) {
-                    $smsService->sendSms($trip->customer->phone, str_replace('*', '', $reminder->message));
+                    if ($tenant && ! $tenant->hasMonthlySmsQuota()) {
+                        $blockedByQuota = true;
+                    } else {
+                        $smsService->sendSms($trip->customer->phone, str_replace('*', '', $reminder->message));
+                    }
                 }
             }
 
-            $reminder->update(['status' => 'sent']);
+            $reminder->update([
+                'status' => ($blockedByQuota && $recipientType === 'customer') ? 'failed' : 'sent',
+            ]);
             $this->info("Processed reminder ID: {$reminder->id}");
         }
 

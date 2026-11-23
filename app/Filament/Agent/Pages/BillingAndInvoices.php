@@ -52,6 +52,7 @@ class BillingAndInvoices extends Page
     protected function getHeaderActions(): array
     {
         return [
+            \App\Filament\Agent\Actions\RequestMessagingQuotaAction::make(),
             RequestPlanUpgradeAction::make('upgrade_plan'),
         ];
     }

@@ -137,9 +137,21 @@ class PlanResource extends Resource
                                 'whatsapp' => __('ui.channel_whatsapp'),
                                 'sms' => __('ui.channel_sms'),
                             ])
-                            ->default(['push', 'email', 'whatsapp'])
+                            ->default(['push', 'email', 'whatsapp', 'sms'])
                             ->columns(4)
                             ->columnSpanFull(),
+                        Forms\Components\TextInput::make('monthly_email_limit')
+                            ->label(__('ui.monthly_email_limit_label'))
+                            ->helperText(__('ui.leave_empty_unlimited'))
+                            ->numeric()
+                            ->minValue(0)
+                            ->placeholder('100'),
+                        Forms\Components\TextInput::make('monthly_sms_limit')
+                            ->label(__('ui.monthly_sms_limit_label'))
+                            ->helperText(__('ui.leave_empty_unlimited'))
+                            ->numeric()
+                            ->minValue(0)
+                            ->placeholder('50'),
                     ])
                     ->columns(2),
             ]);
@@ -164,6 +176,16 @@ class PlanResource extends Resource
                 Tables\Columns\TextColumn::make('extra_user_price')
                     ->label(__('ui.extra_user_price'))
                     ->formatStateUsing(fn ($state, Plan $record): string => '+' . $record->getCurrencySymbol() . number_format((float) $state, 0)),
+                Tables\Columns\TextColumn::make('monthly_email_limit')
+                    ->label(__('ui.monthly_email_limit_short'))
+                    ->formatStateUsing(fn ($state): string => $state !== null ? (string) $state : '∞')
+                    ->badge()
+                    ->color('primary'),
+                Tables\Columns\TextColumn::make('monthly_sms_limit')
+                    ->label(__('ui.monthly_sms_limit_short'))
+                    ->formatStateUsing(fn ($state): string => $state !== null ? (string) $state : '∞')
+                    ->badge()
+                    ->color('warning'),
                 Tables\Columns\TextColumn::make('trial_days')
                     ->label(__('ui.trial_days'))
                     ->suffix(' ' . __('ui.days_short')),

@@ -182,7 +182,29 @@ class TenantResource extends Resource
                             ->default(Tenant::ALL_CHANNELS)
                             ->columns(2)
                             ->visible(fn (\Filament\Forms\Get $get): bool => (bool) $get('reminders_enabled')),
-                    ]),
+                        Forms\Components\TextInput::make('extra_email_quota')
+                            ->label(__('ui.extra_email_quota_label'))
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0)
+                            ->helperText(fn (?Tenant $record): string => $record
+                                ? __('ui.current_usage_helper', [
+                                    'used' => $record->getMonthlyEmailSentCount(),
+                                    'limit' => $record->getMonthlyEmailLimit() ?? '∞',
+                                ])
+                                : ''),
+                        Forms\Components\TextInput::make('extra_sms_quota')
+                            ->label(__('ui.extra_sms_quota_label'))
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0)
+                            ->helperText(fn (?Tenant $record): string => $record
+                                ? __('ui.current_usage_helper', [
+                                    'used' => $record->getMonthlySmsSentCount(),
+                                    'limit' => $record->getMonthlySmsLimit() ?? '∞',
+                                ])
+                                : ''),
+                    ])->columns(2),
             ]);
     }
 
@@ -206,6 +228,42 @@ class TenantResource extends Resource
                     ->state(fn (Tenant $record): string => $record->getActiveUsersCount() . ' / ' . $record->getMaxUsers())
                     ->badge()
                     ->color(fn (Tenant $record): string => $record->canAddMoreUsers() ? 'info' : 'warning'),
+                Tables\Columns\TextColumn::make('email_quota_usage')
+                    ->label(__('ui.monthly_emails_short'))
+                    ->state(function (Tenant $record): string {
+                        $used = $record->getMonthlyEmailSentCount();
+                        $limit = $record->getMonthlyEmailLimit();
+
+                        return $limit !== null ? "{$used} / {$limit}" : "{$used} / ∞";
+                    })
+                    ->badge()
+                    ->color(function (Tenant $record): string {
+                        $limit = $record->getMonthlyEmailLimit();
+                        if ($limit === null || $limit <= 0) {
+                            return 'success';
+                        }
+                        $ratio = $record->getMonthlyEmailSentCount() / $limit;
+
+                        return $ratio >= 1 ? 'danger' : ($ratio >= 0.8 ? 'warning' : 'success');
+                    }),
+                Tables\Columns\TextColumn::make('sms_quota_usage')
+                    ->label(__('ui.monthly_sms_short'))
+                    ->state(function (Tenant $record): string {
+                        $used = $record->getMonthlySmsSentCount();
+                        $limit = $record->getMonthlySmsLimit();
+
+                        return $limit !== null ? "{$used} / {$limit}" : "{$used} / ∞";
+                    })
+                    ->badge()
+                    ->color(function (Tenant $record): string {
+                        $limit = $record->getMonthlySmsLimit();
+                        if ($limit === null || $limit <= 0) {
+                            return 'success';
+                        }
+                        $ratio = $record->getMonthlySmsSentCount() / $limit;
+
+                        return $ratio >= 1 ? 'danger' : ($ratio >= 0.8 ? 'warning' : 'success');
+                    }),
                 Tables\Columns\TextColumn::make('status')
                     ->label(__('ui.status'))
                     ->formatStateUsing(fn (string $state): string => __("ui.{$state}"))
@@ -267,6 +325,81 @@ class TenantResource extends Resource
                         return redirect('/agent');
                     }),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('increase_quota')
+                    ->label(__('ui.increase_quota_action'))
+                    ->icon('heroicon-o-plus-circle')
+                    ->color('warning')
+                    ->modalHeading(fn (Tenant $record): string => __('ui.increase_quota_modal_title', ['tenant' => $record->name]))
+                    ->modalDescription(fn (Tenant $record): string => __('ui.request_more_quota_desc', [
+                        'email_used' => $record->getMonthlyEmailSentCount(),
+                        'email_limit' => $record->getMonthlyEmailLimit() ?? '∞',
+                        'sms_used' => $record->getMonthlySmsSentCount(),
+                        'sms_limit' => $record->getMonthlySmsLimit() ?? '∞',
+                    ]))
+                    ->form([
+                        Forms\Components\TextInput::make('add_emails')
+                            ->label(__('ui.add_extra_emails'))
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0)
+                            ->helperText(__('ui.add_extra_quota_helper')),
+                        Forms\Components\TextInput::make('add_sms')
+                            ->label(__('ui.add_extra_sms'))
+                            ->numeric()
+                            ->minValue(0)
+                            ->default(0)
+                            ->helperText(__('ui.add_extra_quota_helper')),
+                        Forms\Components\Toggle::make('notify_owner')
+                            ->label(__('ui.notify_agent_quota_increased'))
+                            ->default(true),
+                    ])
+                    ->action(function (Tenant $record, array $data) {
+                        $addEmails = max(0, (int) ($data['add_emails'] ?? 0));
+                        $addSms = max(0, (int) ($data['add_sms'] ?? 0));
+
+                        if ($addEmails === 0 && $addSms === 0) {
+                            return;
+                        }
+
+                        $record->update([
+                            'extra_email_quota' => (int) $record->extra_email_quota + $addEmails,
+                            'extra_sms_quota' => (int) $record->extra_sms_quota + $addSms,
+                        ]);
+
+                        $record->refresh();
+
+                        if (! empty($data['notify_owner'])) {
+                            $owners = \App\Models\User::where('tenant_id', $record->id)
+                                ->where('role', 'agent')
+                                ->get();
+                            $webPush = app(\App\Services\WebPushService::class);
+
+                            foreach ($owners as $owner) {
+                                $title = __('ui.agent_quota_increased_title');
+                                $body = __('ui.agent_quota_increased_body', [
+                                    'email_limit' => $record->getMonthlyEmailLimit() ?? '∞',
+                                    'sms_limit' => $record->getMonthlySmsLimit() ?? '∞',
+                                ]);
+
+                                \Filament\Notifications\Notification::make()
+                                    ->title($title)
+                                    ->body($body)
+                                    ->icon('heroicon-o-sparkles')
+                                    ->success()
+                                    ->sendToDatabase($owner);
+
+                                try {
+                                    $webPush->sendToUser($owner, $title, $body, url: '/agent/reminder-rules');
+                                } catch (\Throwable) {
+                                }
+                            }
+                        }
+
+                        \Filament\Notifications\Notification::make()
+                            ->success()
+                            ->title(__('ui.quota_updated_success'))
+                            ->send();
+                    }),
                 \App\Filament\Actions\SendAdminNotificationAction::makeTableAction(),
                 \App\Filament\Actions\SendTenantRenewalAction::makeTableAction(),
                 Tables\Actions\Action::make('renew')

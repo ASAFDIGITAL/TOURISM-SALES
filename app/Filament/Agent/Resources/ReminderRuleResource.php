@@ -212,6 +212,19 @@ class ReminderRuleResource extends Resource
             ]);
     }
 
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()
+            ->withCount('logs')
+            ->withCount([
+                'logs as monthly_logs_count' => fn ($q) => $q->whereBetween('sent_at', [
+                    now()->startOfMonth(),
+                    now()->endOfMonth(),
+                ]),
+            ])
+            ->withMax('logs', 'sent_at');
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -240,10 +253,43 @@ class ReminderRuleResource extends Resource
                     ->label(__('ui.channel'))
                     ->badge()
                     ->formatStateUsing(fn (string $state, ReminderRule $record): string => self::formatChannelsForTable($record)),
+                Tables\Columns\TextColumn::make('monthly_logs_count')
+                    ->label(__('ui.sent_this_month'))
+                    ->badge()
+                    ->color(fn ($state): string => ((int) $state) > 0 ? 'success' : 'gray')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('logs_count')
+                    ->label(__('ui.total_sent_count'))
+                    ->badge()
+                    ->color('info')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('logs_max_sent_at')
+                    ->label(__('ui.last_sent_at'))
+                    ->dateTime('d/m/Y H:i')
+                    ->placeholder('-')
+                    ->sortable(),
                 Tables\Columns\ToggleColumn::make('is_active')
                     ->label(__('ui.active')),
             ])
             ->actions([
+                Tables\Actions\Action::make('view_logs')
+                    ->label(__('ui.view_rule_logs'))
+                    ->icon('heroicon-o-clipboard-document-list')
+                    ->color('info')
+                    ->modalHeading(fn (ReminderRule $record): string => __('ui.rule_logs_modal_title', ['name' => $record->name]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel(__('ui.close'))
+                    ->modalContent(function (ReminderRule $record) {
+                        $logs = $record->logs()
+                            ->with(['trip.customer'])
+                            ->orderByDesc('sent_at')
+                            ->limit(50)
+                            ->get();
+
+                        return view('filament.agent.components.rule-logs-modal', [
+                            'logs' => $logs,
+                        ]);
+                    }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

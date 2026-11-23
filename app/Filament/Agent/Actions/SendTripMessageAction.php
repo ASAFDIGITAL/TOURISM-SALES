@@ -207,12 +207,26 @@ class SendTripMessageAction
             return;
         }
 
+        $tenant = $trip->tenant;
+        if ($tenant && ! $tenant->hasMonthlyEmailQuota()) {
+            Notification::make()
+                ->danger()
+                ->title(__('ui.email_quota_reached_title'))
+                ->body(__('ui.email_quota_reached_body', [
+                    'used' => $tenant->getMonthlyEmailSentCount(),
+                    'limit' => $tenant->getMonthlyEmailLimit(),
+                ]))
+                ->send();
+
+            return;
+        }
+
         $email = (string) ($data['recipient_email'] ?? '');
         $subject = (string) ($data['subject'] ?? $trip->title);
         $attachPdf = (bool) ($data['attach_itinerary'] ?? false);
         $senderName = trim((string) ($data['sender_name'] ?? '')) ?: $trip->tenant?->name;
 
-        $service->sendEmail(
+        $sent = $service->sendEmail(
             trip: $trip,
             recipientEmail: $email,
             subject: $subject,
@@ -221,6 +235,15 @@ class SendTripMessageAction
             attachItinerary: $attachPdf,
             senderName: $senderName,
         );
+
+        if (! $sent) {
+            Notification::make()
+                ->danger()
+                ->title(__('ui.email_quota_reached_title'))
+                ->send();
+
+            return;
+        }
 
         Notification::make()
             ->success()

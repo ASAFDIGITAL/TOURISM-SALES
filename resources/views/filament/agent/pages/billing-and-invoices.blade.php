@@ -113,8 +113,14 @@
                                 {{ __('ui.total_including_vat', ['total' => $sym . number_format($totals['total'], 2), 'vat' => $totals['vat_rate']]) }}
                             </div>
 
-                            <div style="margin-top: 10px; font-size: 0.82rem; color: #64748b;">
-                                • {{ __('ui.plan_feat_users', ['count' => $plan->included_users + $extraSeats]) }}
+                            <div style="margin-top: 10px; font-size: 0.82rem; color: #64748b; display: flex; flex-direction: column; gap: 4px;">
+                                <div>• {{ __('ui.plan_feat_users', ['count' => $plan->included_users + $extraSeats]) }}</div>
+                                @if ($plan->monthly_email_limit !== null)
+                                    <div>• {{ __('ui.plan_feat_monthly_emails', ['count' => $plan->monthly_email_limit]) }}</div>
+                                @endif
+                                @if ($plan->monthly_sms_limit !== null)
+                                    <div>• {{ __('ui.plan_feat_monthly_sms', ['count' => $plan->monthly_sms_limit]) }}</div>
+                                @endif
                             </div>
                         </div>
 

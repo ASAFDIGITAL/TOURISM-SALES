@@ -12,9 +12,17 @@ class ListReminderRules extends ListRecords
 {
     protected static string $resource = ReminderRuleResource::class;
 
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            \App\Filament\Agent\Widgets\MessagingQuotaWidget::class,
+        ];
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            \App\Filament\Agent\Actions\RequestMessagingQuotaAction::make(),
             \App\Filament\Agent\Actions\RequestSmsAccessAction::make(),
             Actions\Action::make('create_presets')
                 ->label(__('ui.create_default_rules'))

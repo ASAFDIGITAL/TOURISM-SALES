@@ -11,6 +11,9 @@ class ReminderRuleLog extends Model
         'reminder_rule_id',
         'trip_id',
         'sent_at',
+        'channels_sent',
+        'status',
+        'note',
     ];
 
     protected $casts = [
