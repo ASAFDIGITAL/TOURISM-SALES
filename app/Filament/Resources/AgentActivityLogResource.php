@@ -147,6 +147,11 @@ class AgentActivityLogResource extends Resource
                     ->relationship('tenant', 'name')
                     ->searchable()
                     ->preload(),
+                Tables\Filters\SelectFilter::make('user_id')
+                    ->label(__('ui.name'))
+                    ->relationship('user', 'name')
+                    ->searchable()
+                    ->preload(),
                 Tables\Filters\SelectFilter::make('event')
                     ->label(__('ui.event_type'))
                     ->options([
@@ -170,12 +175,14 @@ class AgentActivityLogResource extends Resource
                             ->label(__('ui.end_date'))
                             ->native(false),
                     ])
+                    ->columns(2)
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
                             ->when(filled($data['from'] ?? null), fn (Builder $q) => $q->whereDate('created_at', '>=', $data['from']))
                             ->when(filled($data['until'] ?? null), fn (Builder $q) => $q->whereDate('created_at', '<=', $data['until']));
                     }),
-            ])
+            ], layout: Tables\Enums\FiltersLayout::AboveContent)
+            ->filtersFormColumns(4)
             ->actions([
                 Tables\Actions\Action::make('open_tenant')
                     ->label(__('ui.manage_agent'))

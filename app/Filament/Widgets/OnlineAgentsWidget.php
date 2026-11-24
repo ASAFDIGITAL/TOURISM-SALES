@@ -85,6 +85,16 @@ class OnlineAgentsWidget extends BaseWidget
                     ->url(fn (): string => AgentActivityLogResource::getUrl('index')),
             ])
             ->actions([
+                Tables\Actions\Action::make('tenant_logs')
+                    ->label(__('ui.online_and_logs'))
+                    ->icon('heroicon-o-clipboard-document-list')
+                    ->color('gray')
+                    ->visible(fn (User $record): bool => filled($record->tenant_id))
+                    ->url(fn (User $record): string => AgentActivityLogResource::getUrl('index', [
+                        'tableFilters' => [
+                            'tenant_id' => ['value' => $record->tenant_id],
+                        ],
+                    ])),
                 Tables\Actions\Action::make('manage_tenant')
                     ->label(__('ui.manage_agent'))
                     ->icon('heroicon-o-pencil-square')

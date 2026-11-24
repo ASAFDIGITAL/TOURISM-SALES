@@ -376,8 +376,27 @@ class TenantResource extends Resource
                         abort_unless(auth()->user()?->isSuperAdmin(), 403);
                         auth()->user()->startImpersonatingTenant($record);
 
+                        \App\Models\AgentActivityLog::recordForUser(
+                            user: auth()->user(),
+                            event: \App\Models\AgentActivityLog::EVENT_IMPERSONATE_START,
+                            request: request(),
+                            overridePath: '/agent',
+                            details: "Admin support entry: {$record->name}",
+                            allowSuperAdmin: true,
+                            overrideTenantId: $record->id,
+                        );
+
                         return redirect('/agent');
                     }),
+                Tables\Actions\Action::make('view_logs')
+                    ->label(__('ui.online_and_logs'))
+                    ->icon('heroicon-o-signal')
+                    ->color('gray')
+                    ->url(fn (Tenant $record): string => AgentActivityLogResource::getUrl('index', [
+                        'tableFilters' => [
+                            'tenant_id' => ['value' => $record->id],
+                        ],
+                    ])),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\Action::make('increase_quota')
                     ->label(__('ui.increase_quota_action'))
