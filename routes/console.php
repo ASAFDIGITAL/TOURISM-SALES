@@ -16,3 +16,4 @@ Schedule::command('app:check-passport-expiries')->dailyAt('08:45');
 Schedule::command('app:check-collection-alerts')->dailyAt('09:00');
 Schedule::command('app:check-expiring-tenants')->dailyAt('09:30');
 Schedule::command('app:send-trial-onboarding-emails')->dailyAt('10:00');
+Schedule::command('model:prune', ['--model' => [\App\Models\AgentActivityLog::class]])->dailyAt('03:30');

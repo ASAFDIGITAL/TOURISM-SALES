@@ -78,6 +78,8 @@ class User extends Authenticatable implements FilamentUser
             'notify_flights' => 'boolean',
             'notify_reminders' => 'boolean',
             'notify_expiring_tenants' => 'boolean',
+            'last_login_at' => 'datetime',
+            'last_seen_at' => 'datetime',
         ];
     }
 
@@ -112,6 +114,25 @@ class User extends Authenticatable implements FilamentUser
     public function pushSubscriptions()
     {
         return $this->hasMany(PushSubscription::class);
+    }
+
+    public function activityLogs()
+    {
+        return $this->hasMany(AgentActivityLog::class);
+    }
+
+    public function isOnlineNow(int $withinMinutes = 5): bool
+    {
+        return $this->last_seen_at !== null
+            && $this->last_seen_at->greaterThanOrEqualTo(now()->subMinutes($withinMinutes));
+    }
+
+    public function scopeOnlineAgents(\Illuminate\Database\Eloquent\Builder $query, int $withinMinutes = 5): \Illuminate\Database\Eloquent\Builder
+    {
+        return $query
+            ->where('role', 'agent')
+            ->whereNotNull('last_seen_at')
+            ->where('last_seen_at', '>=', now()->subMinutes($withinMinutes));
     }
 
     public function isSuperAdmin(): bool
