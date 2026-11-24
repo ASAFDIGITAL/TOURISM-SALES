@@ -414,6 +414,22 @@ class UPayService
                 $webPush->sendToUser($admin, $title, $body, url: $editUrl, tag: 'upay-' . $invoice->id);
             } catch (\Throwable) {
             }
+
+            app(AdminAlertMailService::class)->sendToAdmin(
+                admin: $admin,
+                subject: $title,
+                body: $body,
+                badge: __('ui.admin_alert_badge_payment'),
+                details: [
+                    __('ui.agency_name') => $tenant->name,
+                    __('ui.amount') => $amountFormatted,
+                    __('ui.plan') => $tenant->plan?->getLocalizedName() ?? '-',
+                    __('ui.payplus_invoice_no') => $invoice->payplus_invoice_number ?: '#' . $invoice->id,
+                ],
+                actionLabel: __('ui.manage_agent'),
+                actionUrl: $editUrl,
+                tone: $approved ? 'success' : 'danger',
+            );
         }
 
         if ($approved) {

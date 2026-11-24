@@ -143,6 +143,22 @@ class RequestPlanUpgradeAction
                         );
                     } catch (\Throwable) {
                     }
+
+                    app(\App\Services\AdminAlertMailService::class)->sendToAdmin(
+                        admin: $admin,
+                        subject: $title,
+                        body: $body,
+                        badge: __('ui.admin_alert_badge_request'),
+                        details: [
+                            __('ui.agency_name') => $tenant->name,
+                            __('ui.name') => $user->name,
+                            __('ui.phone') => $user->phone ?: ($tenant->phone ?? ''),
+                            __('ui.email') => $user->email,
+                        ],
+                        actionLabel: __('ui.open_agent_to_enable'),
+                        actionUrl: $editUrl,
+                        tone: 'warning',
+                    );
                 }
 
                 Cache::put($cacheKey, true, now()->addMinutes(5));

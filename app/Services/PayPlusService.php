@@ -466,6 +466,22 @@ class PayPlusService
                 $webPush->sendToUser($admin, $adminTitle, $adminBody, url: $invoiceAdminUrl, tag: 'payplus-paid-' . $invoice->id);
             } catch (\Throwable) {
             }
+
+            app(AdminAlertMailService::class)->sendToAdmin(
+                admin: $admin,
+                subject: $adminTitle,
+                body: $adminBody,
+                badge: __('ui.admin_alert_badge_payment'),
+                details: [
+                    __('ui.agency_name') => $tenant->name,
+                    __('ui.amount') => $amountStr,
+                    __('ui.plan') => $tenant->plan?->getLocalizedName() ?? '-',
+                    __('ui.payplus_invoice_no') => $invoice->payplus_invoice_number ?: '#' . $invoice->id,
+                ],
+                actionLabel: __('ui.subscription_invoices'),
+                actionUrl: $invoiceAdminUrl,
+                tone: 'success',
+            );
         }
 
         $agentTitle = __('ui.payplus_agent_paid_title');
@@ -499,6 +515,20 @@ class PayPlusService
                 ->icon('heroicon-o-exclamation-triangle')
                 ->danger()
                 ->sendToDatabase($admin);
+
+            app(AdminAlertMailService::class)->sendToAdmin(
+                admin: $admin,
+                subject: $title,
+                body: $body,
+                badge: __('ui.admin_alert_badge_payment'),
+                details: [
+                    __('ui.agency_name') => $tenant->name,
+                    __('ui.amount') => $invoice->getCurrencySymbol() . number_format((float) $invoice->total_amount, 2),
+                ],
+                actionLabel: __('ui.manage_agent'),
+                actionUrl: '/admin/tenants/' . $tenant->id . '/edit',
+                tone: 'danger',
+            );
         }
     }
 }

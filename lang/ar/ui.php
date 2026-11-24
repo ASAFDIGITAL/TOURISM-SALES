@@ -959,4 +959,8 @@ return [
     'hotels_import_success_body' => 'تمت إضافة :created فندق جديد | تم تحديث :updated | تم تخطي :skipped.',
     'import_failed_title' => 'خطأ في استيراد الملف',
     'import_invalid_file_type' => 'يرجى رفع ملف إكسل (.xlsx) أو CSV فقط.',
+    'admin_alert_badge_new_agency' => 'انضمام وكالة جديدة',
+    'admin_alert_badge_payment' => 'تحديث دفع اشتراك',
+    'admin_alert_badge_support' => 'تذكرة دعم فني',
+    'admin_alert_badge_request' => 'طلب ترقية / رصيد',
 ];

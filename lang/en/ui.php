@@ -961,4 +961,8 @@ return [
     'hotels_import_success_body' => 'Added :created new hotel(s) | Updated :updated | Skipped :skipped.',
     'import_failed_title' => 'File Import Failed',
     'import_invalid_file_type' => 'Please upload an Excel (.xlsx) or CSV file only.',
+    'admin_alert_badge_new_agency' => 'New Agency Joined',
+    'admin_alert_badge_payment' => 'Subscription Payment',
+    'admin_alert_badge_support' => 'Support Ticket',
+    'admin_alert_badge_request' => 'Upgrade / Quota Request',
 ];

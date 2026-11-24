@@ -198,6 +198,22 @@ class SupportTicketService
             } catch (\Throwable) {
                 // Keep ticket creation/reply resilient even if push delivery fails
             }
+
+            app(AdminAlertMailService::class)->sendToAdmin(
+                admin: $admin,
+                subject: $title,
+                body: $message->body,
+                badge: __('ui.admin_alert_badge_support'),
+                details: [
+                    __('ui.agency_name') => $tenantName,
+                    __('ui.subject') => $ticket->subject,
+                    __('ui.phone') => $ticket->tenant?->phone ?? '',
+                    __('ui.email') => $ticket->tenant?->email ?? '',
+                ],
+                actionLabel: __('ui.open_conversation'),
+                actionUrl: $ticketUrl,
+                tone: 'warning',
+            );
         }
     }
 

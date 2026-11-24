@@ -7,6 +7,7 @@ use App\Models\Coupon;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\AdminAlertMailService;
 use App\Services\ReminderRuleEngine;
 use App\Services\WebPushService;
 use Filament\Notifications\Actions\Action as NotificationAction;
@@ -184,6 +185,24 @@ class AgencyRegistrationController extends Controller
                 );
             } catch (\Throwable) {
             }
+
+            app(AdminAlertMailService::class)->sendToAdmin(
+                admin: $admin,
+                subject: $title,
+                body: $body,
+                badge: __('ui.admin_alert_badge_new_agency'),
+                details: [
+                    __('ui.agency_name') => $tenant->name,
+                    __('ui.owner_name') => $owner->name,
+                    __('ui.phone') => $owner->phone ?: '-',
+                    __('ui.email') => $owner->email,
+                    __('ui.plan') => $plan->getLocalizedName(),
+                    __('ui.coupon') => $tenant->coupon?->code ?? '',
+                ],
+                actionLabel: __('ui.manage_agent'),
+                actionUrl: $editUrl,
+                tone: 'success',
+            );
         }
     }
 }

@@ -961,4 +961,8 @@ return [
     'hotels_import_success_body' => 'נוספו :created מלונות חדשים | עודכנו :updated | דולגו :skipped.',
     'import_failed_title' => 'שגיאה בייבוא הקובץ',
     'import_invalid_file_type' => 'נא להעלות קובץ אקסל (.xlsx) או CSV בלבד.',
+    'admin_alert_badge_new_agency' => 'סוכנות חדשה הצטרפה',
+    'admin_alert_badge_payment' => 'עדכון תשלום מנוי',
+    'admin_alert_badge_support' => 'פניית תמיכה',
+    'admin_alert_badge_request' => 'בקשת שדרוג / מכסה',
 ];

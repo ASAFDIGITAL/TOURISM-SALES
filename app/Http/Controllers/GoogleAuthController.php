@@ -6,6 +6,7 @@ use App\Filament\Resources\TenantResource;
 use App\Models\Plan;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\AdminAlertMailService;
 use App\Services\ReminderRuleEngine;
 use App\Services\WebPushService;
 use Filament\Notifications\Actions\Action as NotificationAction;
@@ -238,6 +239,22 @@ class GoogleAuthController extends Controller
                 $webPush->sendToUser($admin, $title, $body, url: $editUrl, tag: 'new-signup-' . $tenant->id);
             } catch (\Throwable) {
             }
+
+            app(AdminAlertMailService::class)->sendToAdmin(
+                admin: $admin,
+                subject: $title,
+                body: $body,
+                badge: __('ui.admin_alert_badge_new_agency'),
+                details: [
+                    __('ui.agency_name') => $tenant->name,
+                    __('ui.owner_name') => $owner->name . ' (Google)',
+                    __('ui.email') => $owner->email,
+                    __('ui.plan') => $plan?->getLocalizedName() ?? 'Pro',
+                ],
+                actionLabel: __('ui.manage_agent'),
+                actionUrl: $editUrl,
+                tone: 'success',
+            );
         }
     }
 }
