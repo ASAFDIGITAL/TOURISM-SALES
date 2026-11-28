@@ -118,8 +118,9 @@ class AviationDirectoryService
                 if ($cleanCity === '') {
                     continue;
                 }
-                $country = (string) ($airport['country'] ?? '');
-                $label = $country !== '' ? "{$cleanCity}, {$country}" : $cleanCity;
+                $country = $this->localizeCountry((string) ($airport['country'] ?? ''), $locale);
+                $sep = $locale === 'ar' ? '، ' : ', ';
+                $label = $country !== '' ? "{$cleanCity}{$sep}{$country}" : $cleanCity;
                 $results[$label] = $label;
 
                 if (count($results) >= $limit) {
@@ -131,11 +132,12 @@ class AviationDirectoryService
         if (mb_strlen($query) >= 2 && count($results) < $limit) {
             foreach ($this->fetchRemoteCities($query) as $remote) {
                 $city = (string) ($remote['city'] ?? '');
-                $country = (string) ($remote['country'] ?? '');
+                $country = $this->localizeCountry((string) ($remote['country'] ?? ''), $locale);
                 if ($city === '') {
                     continue;
                 }
-                $label = $country !== '' ? "{$city}, {$country}" : $city;
+                $sep = $locale === 'ar' ? '، ' : ', ';
+                $label = $country !== '' ? "{$city}{$sep}{$country}" : $city;
                 $results[$label] = $label;
                 if (count($results) >= $limit) {
                     break;
@@ -144,6 +146,131 @@ class AviationDirectoryService
         }
 
         return $results;
+    }
+
+    public function localizeCountry(?string $country, string $locale = 'he'): string
+    {
+        $raw = trim((string) $country);
+        if ($raw === '') {
+            return '';
+        }
+
+        $targetLang = in_array($locale, ['he', 'ar', 'en'], true) ? $locale : 'en';
+        $countries = (array) config('aviation.countries', []);
+        $needle = mb_strtolower($raw);
+
+        foreach ($countries as $enName => $translations) {
+            if (mb_strtolower((string) $enName) === $needle) {
+                return (string) ($translations[$targetLang] ?? $enName);
+            }
+
+            foreach ((array) $translations as $val) {
+                if (mb_strtolower((string) $val) === $needle) {
+                    return (string) ($translations[$targetLang] ?? $enName);
+                }
+            }
+        }
+
+        return $raw;
+    }
+
+    /**
+     * Translate any saved destination string (e.g. "פריז, France", "Paris, France", "باريس، فرنسا")
+     * into the target document/UI language ("פריז, צרפת" / "باريس، فرنسا" / "Paris, France").
+     */
+    public function localizeDestination(?string $destination, string $locale = 'he'): string
+    {
+        $raw = trim((string) $destination);
+        if ($raw === '') {
+            return '';
+        }
+
+        $targetLang = in_array($locale, ['he', 'ar', 'en'], true) ? $locale : 'en';
+        $sep = $targetLang === 'ar' ? '، ' : ', ';
+
+        // Split by English comma or Arabic comma ("פריז, France" or "باريس، فرنسا")
+        $parts = preg_split('/\s*[,،]\s*/u', $raw, 2);
+        $cityPart = trim((string) ($parts[0] ?? ''));
+        $countryPart = trim((string) ($parts[1] ?? ''));
+
+        $matchedAirport = $this->findAirportByCityName($cityPart);
+        if ($matchedAirport !== null) {
+            $cityRaw = match ($targetLang) {
+                'he' => (string) ($matchedAirport['city_he'] ?? $matchedAirport['city'] ?? ''),
+                'ar' => (string) ($matchedAirport['city_ar'] ?? $matchedAirport['city'] ?? ''),
+                default => (string) ($matchedAirport['city'] ?? ''),
+            };
+            $localizedCity = trim((string) preg_replace('/\s*\([^)]*\)/u', '', $cityRaw));
+            $localizedCountry = $this->localizeCountry(
+                $countryPart !== '' ? $countryPart : (string) ($matchedAirport['country'] ?? ''),
+                $targetLang
+            );
+
+            if ($localizedCity !== '' && $localizedCountry !== '') {
+                return "{$localizedCity}{$sep}{$localizedCountry}";
+            }
+
+            return $localizedCity ?: $raw;
+        }
+
+        // If the entire string is just a country name (e.g. "France" / "צרפת")
+        if ($countryPart === '') {
+            return $this->localizeCountry($cityPart, $targetLang);
+        }
+
+        // Unknown custom city, but localize the country part cleanly
+        $localizedCountry = $this->localizeCountry($countryPart, $targetLang);
+
+        return "{$cityPart}{$sep}{$localizedCountry}";
+    }
+
+    /**
+     * Translate a saved airport string like "CDG — פריז (שארל דה גול), France" into the target language.
+     */
+    public function localizeAirport(?string $airportValue, string $locale = 'he'): string
+    {
+        $raw = trim((string) $airportValue);
+        if ($raw === '') {
+            return '';
+        }
+
+        if (preg_match('/^([A-Z]{3})\b/i', $raw, $m)) {
+            $code = strtoupper($m[1]);
+            foreach ((array) config('aviation.airports', []) as $airport) {
+                if (strtoupper((string) ($airport['code'] ?? '')) === $code) {
+                    // Keep short IATA code if the user only entered "TLV"
+                    if (strlen($raw) <= 4) {
+                        return $code;
+                    }
+
+                    return $this->formatAirportLabel($airport, $locale);
+                }
+            }
+        }
+
+        return $raw;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    protected function findAirportByCityName(string $cityName): ?array
+    {
+        $needle = mb_strtolower(trim((string) preg_replace('/\s*\([^)]*\)/u', '', $cityName)));
+        if ($needle === '') {
+            return null;
+        }
+
+        foreach ((array) config('aviation.airports', []) as $airport) {
+            foreach (['city', 'city_he', 'city_ar'] as $key) {
+                $candidate = trim((string) preg_replace('/\s*\([^)]*\)/u', '', (string) ($airport[$key] ?? '')));
+                if ($candidate !== '' && mb_strtolower($candidate) === $needle) {
+                    return $airport;
+                }
+            }
+        }
+
+        return null;
     }
 
     public function extractAirlineCode(?string $airlineValue): ?string
@@ -172,10 +299,11 @@ class AviationDirectoryService
         };
 
         $name = (string) ($airport['name'] ?? '');
-        $country = (string) ($airport['country'] ?? '');
+        $country = $this->localizeCountry((string) ($airport['country'] ?? ''), $locale);
+        $sep = $locale === 'ar' ? '، ' : ', ';
 
         if ($city !== '' && $country !== '') {
-            return "{$code} — {$city}, {$country}";
+            return "{$code} — {$city}{$sep}{$country}";
         }
 
         return trim("{$code} — " . ($city ?: $name));
@@ -203,13 +331,19 @@ class AviationDirectoryService
     protected function matchesAirport(array $airport, string $query): bool
     {
         $needle = mb_strtolower($query);
+        $countryEn = (string) ($airport['country'] ?? '');
+        $countryHe = $this->localizeCountry($countryEn, 'he');
+        $countryAr = $this->localizeCountry($countryEn, 'ar');
+
         $haystack = mb_strtolower(implode(' ', [
             $airport['code'] ?? '',
             $airport['name'] ?? '',
             $airport['city'] ?? '',
             $airport['city_he'] ?? '',
             $airport['city_ar'] ?? '',
-            $airport['country'] ?? '',
+            $countryEn,
+            $countryHe,
+            $countryAr,
         ]));
 
         return str_contains($haystack, $needle);

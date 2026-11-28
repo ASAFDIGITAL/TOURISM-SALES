@@ -221,7 +221,7 @@
                     <span>👤 {{ $trip->customer->name }}</span>
                 @endif
                 @if ($trip->destination)
-                    <span>📍 {{ $trip->destination }}</span>
+                    <span>📍 {{ app(\App\Services\AviationDirectoryService::class)->localizeDestination($trip->destination, $locale) }}</span>
                 @endif
                 @if ($trip->start_date)
                     <span>

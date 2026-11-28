@@ -220,6 +220,10 @@
     $heroArtwork = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="220" height="130" viewBox="0 0 220 130"><circle cx="110" cy="65" r="54" fill="none" stroke="' . $heroAccentMuted . '" stroke-width="1.2"/><circle cx="110" cy="65" r="38" fill="none" stroke="' . $heroAccentMuted . '" stroke-width="1" stroke-dasharray="4 4"/><path d="M24 96 Q 100 22 196 38" fill="none" stroke="' . $heroAccentStroke . '" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.85"/><circle cx="24" cy="96" r="3.5" fill="' . $heroAccentStroke . '"/><path d="M198 37 L186 33 L189 40 L185 45 Z" fill="' . $heroAccentStroke . '"/><path d="M110 20 L110 30 M110 100 L110 110 M65 65 L75 65 M145 65 L155 65" stroke="' . $heroAccentStroke . '" stroke-width="1.2" opacity="0.5"/></svg>');
 
     $contactLine = collect([$tenant->phone, $tenant->email])->filter()->implode('  ·  ');
+    $aviationService = app(\App\Services\AviationDirectoryService::class);
+    $localizedDestination = filled($trip->destination)
+        ? $aviationService->localizeDestination($trip->destination, $lang)
+        : '';
 @endphp
 <!doctype html>
 <html lang="{{ $lang }}" dir="{{ $isRtl ? 'rtl' : 'ltr' }}">
@@ -636,16 +640,16 @@
                     <td style="width: 64%; text-align: right;">
                         <div class="hero-kicker">{{ $f($t('ui.itinerary')) }}</div>
                         <div class="hero-title">{{ $f($trip->title) }}</div>
-                        @if(filled($trip->destination))
-                            <div class="hero-subtitle">{{ $f($trip->destination) }}</div>
+                        @if($localizedDestination !== '')
+                            <div class="hero-subtitle">{{ $f($localizedDestination) }}</div>
                         @endif
                     </td>
                 @else
                     <td style="width: 64%; text-align: left;">
                         <div class="hero-kicker">{{ $t('ui.itinerary') }}</div>
                         <div class="hero-title">{{ $f($trip->title) }}</div>
-                        @if(filled($trip->destination))
-                            <div class="hero-subtitle">{{ $f($trip->destination) }}</div>
+                        @if($localizedDestination !== '')
+                            <div class="hero-subtitle">{{ $f($localizedDestination) }}</div>
                         @endif
                     </td>
                     <td style="width: 36%; text-align: right;">
@@ -710,8 +714,8 @@
                         $arrFormatted = !empty($flight['arrival_time'])
                             ? \Carbon\Carbon::parse($flight['arrival_time'])->format('d.m · H:i')
                             : null;
-                        $fromCode = trim((string) ($flight['from_airport'] ?? ''));
-                        $toCode = trim((string) ($flight['to_airport'] ?? ''));
+                        $fromCode = $aviationService->localizeAirport((string) ($flight['from_airport'] ?? ''), $lang);
+                        $toCode = $aviationService->localizeAirport((string) ($flight['to_airport'] ?? ''), $lang);
                         $airlineDisplay = trim((string) ($flight['airline'] ?? ''));
                         $flightNoDisplay = trim((string) ($flight['flight_number'] ?? ''));
                         $routeDisplay = ($fromCode || $toCode)

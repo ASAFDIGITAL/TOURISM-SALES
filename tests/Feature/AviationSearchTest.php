@@ -53,10 +53,22 @@ class AviationSearchTest extends TestCase
         $firstAirline = array_key_first($elalResults);
         $this->assertSame('LY', $service->extractAirlineCode($firstAirline));
 
-        // Destinations search
+        // Destinations search (localized city + country)
         $romeDest = $service->searchDestinations('רומא');
         $this->assertNotEmpty($romeDest);
-        $this->assertStringContainsString('רומא', array_key_first($romeDest));
+        $this->assertSame('רומא, איטליה', array_key_first($romeDest));
+
+        // Searching by Hebrew or Arabic country name finds its cities
+        $franceDest = $service->searchDestinations('צרפת');
+        $this->assertNotEmpty($franceDest);
+        $this->assertSame('פריז, צרפת', array_key_first($franceDest));
+
+        // Cross-language destination localization (converts "פריז, France" into target PDF/portal language)
+        $this->assertSame('פריז, צרפת', $service->localizeDestination('פריז, France', 'he'));
+        $this->assertSame('باريس، فرنسا', $service->localizeDestination('פריז, France', 'ar'));
+        $this->assertSame('Paris, France', $service->localizeDestination('פריז, France', 'en'));
+        $this->assertSame('רומא, איטליה', $service->localizeDestination('Rome, Italy', 'he'));
+        $this->assertSame('Rome, Italy', $service->localizeDestination('روما، إيطاليا', 'en'));
     }
 
     public function test_authenticated_aviation_json_endpoints_and_trip_message_with_airports(): void
