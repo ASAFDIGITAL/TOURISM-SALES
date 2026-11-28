@@ -13,6 +13,7 @@ class ViewTrip extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            \App\Filament\Agent\Actions\DownloadItineraryAction::makeHeaderAction(),
             \App\Filament\Agent\Actions\SendTripMessageAction::makeHeaderAction(),
             Actions\EditAction::make(),
         ];

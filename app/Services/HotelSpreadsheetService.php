@@ -203,6 +203,7 @@ class HotelSpreadsheetService
             $totalRows++;
 
             $payload = [
+                'type' => $this->parseType($mapped['type'] ?? null),
                 'destination' => $this->nullIfBlank($mapped['destination'] ?? null, 255),
                 'stars' => $this->parseStars($mapped['stars'] ?? null),
                 'phone' => $this->nullIfBlank($mapped['phone'] ?? null, 64),
@@ -460,7 +461,8 @@ class HotelSpreadsheetService
     private function detectHeaderMap(array $row): ?array
     {
         $aliases = [
-            'name' => ['name', 'hotel', 'hotel name', 'hotel_name', 'שם', 'שם המלון', 'שם מלון', 'מלון', 'اسم الفندق', 'الفندق', 'الاسم'],
+            'name' => ['name', 'hotel', 'hotel name', 'hotel_name', 'שם', 'שם המלון', 'שם מלון', 'מלון', 'שם המלון / הדירה', 'اسم الفندق', 'الفندق', 'الاسم', 'اسم الفندق / الشقة'],
+            'type' => ['type', 'property type', 'סוג', 'סוג לינה', 'النوع', 'نوع الإقامة'],
             'destination' => ['destination', 'city', 'location', 'destination / city', 'יעד', 'עיר', 'יעד / עיר', 'מיקום', 'الوجهة', 'المدينة', 'الوجهة / المدينة'],
             'stars' => ['stars', 'star', 'rating', 'stars (1-5)', 'כוכבים', 'דירוג', 'דירוג כוכבים', 'כוכבים (1-5)', 'النجوم', 'تصنيف النجوم', 'النجوم (1-5)', 'نجوم'],
             'phone' => ['phone', 'tel', 'telephone', 'mobile', 'טלפון', 'נייד', 'الهاتف', 'رقم الهاتف', 'جوال'],
@@ -486,6 +488,20 @@ class HotelSpreadsheetService
         }
 
         return isset($map) && in_array('name', $map, true) ? $map : null;
+    }
+
+    private function parseType(?string $raw): string
+    {
+        if ($raw === null || trim($raw) === '') {
+            return Hotel::TYPE_HOTEL;
+        }
+
+        $normalized = mb_strtolower(trim($raw));
+        if (in_array($normalized, ['apartment', 'apt', 'flat', 'דירה', 'شقة', 'شقه'], true)) {
+            return Hotel::TYPE_APARTMENT;
+        }
+
+        return Hotel::TYPE_HOTEL;
     }
 
     private function parseStars(?string $raw): ?int

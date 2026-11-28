@@ -92,6 +92,45 @@ class TripMessagingAndItineraryTest extends TestCase
         $shapedArabic = \App\Helpers\PdfHelper::fixRtl('السلام عليكم');
         $this->assertMatchesRegularExpression('/[\x{FE70}-\x{FEFF}]/u', $shapedArabic);
         $this->assertStringContainsString("\u{FEFC}", $shapedArabic); // final Lam-Alef ligature in السلام
+
+        // Hebrew embedded inside an English (LTR) PDF is visually reversed so "פריז, France" never prints backwards
+        $fixedMixedLtr = \App\Helpers\PdfHelper::fixForPdf('פריז, France', false);
+        $this->assertSame('זירפ, France', $fixedMixedLtr);
+
+        // Downloading PDF in an explicit override language works regardless of tenant default language
+        $heTrip = $this->createSampleTrip('he');
+        $heTrip->update([
+            'destination' => 'פריז, France',
+            'hotels' => [
+                [
+                    'type' => 'apartment',
+                    'name' => 'Champs-Élysées Suite',
+                    'address' => '18 Rue Marbeuf, Paris',
+                    'from' => '2026-07-10',
+                    'until' => '2026-07-15',
+                    'rooms' => 2,
+                ],
+            ],
+            'passengers' => [
+                ['name' => 'דוד כהן', 'passport_number' => 'IL99887766'],
+            ],
+        ]);
+        $heTrip->refresh();
+
+        foreach (['he', 'ar', 'en'] as $overrideLang) {
+            $overridePdf = $service->getItineraryPdfContent($heTrip, $overrideLang);
+            $this->assertStringStartsWith('%PDF-', $overridePdf);
+
+            $this->get(route('trip.portal.itinerary', ['token' => $heTrip->getOrCreatePublicToken(), 'lang' => $overrideLang]))
+                ->assertOk()
+                ->assertHeader('Content-Type', 'application/pdf');
+        }
+
+        $this->get($heTrip->getPortalUrl())
+            ->assertOk()
+            ->assertSee('Champs-Élysées Suite')
+            ->assertSee('18 Rue Marbeuf, Paris')
+            ->assertSee('IL99887766');
     }
 
     public function test_builds_hebrew_and_arabic_trip_summary_and_payment_reminder_messages(): void

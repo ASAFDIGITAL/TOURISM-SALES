@@ -13,6 +13,7 @@ class EditTrip extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            \App\Filament\Agent\Actions\DownloadItineraryAction::makeHeaderAction(),
             \App\Filament\Agent\Actions\SendTripMessageAction::makeHeaderAction(),
             Actions\ViewAction::make(),
             Actions\DeleteAction::make(),

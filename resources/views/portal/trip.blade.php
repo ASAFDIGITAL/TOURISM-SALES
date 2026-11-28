@@ -321,13 +321,34 @@
             </section>
         @endif
 
-        {{-- Hotels --}}
+        {{-- Hotels / Apartments --}}
         @if (count($hotels) > 0)
+            @php
+                $portalStayTypes = collect($hotels)->map(fn ($h) => ($h['type'] ?? 'hotel') === 'apartment' ? 'apartment' : 'hotel')->unique();
+                $portalStayHeading = match (true) {
+                    $portalStayTypes->contains('apartment') && $portalStayTypes->contains('hotel') => __('ui.hotel_and_apartment_stay_heading'),
+                    $portalStayTypes->contains('apartment') => __('ui.apartment_stay_heading'),
+                    default => __('ui.hotel_stay_heading'),
+                };
+            @endphp
             <section class="card">
-                <h2>🏨 {{ __('ui.hotels') }}</h2>
+                <h2>{{ $portalStayTypes->contains('apartment') && ! $portalStayTypes->contains('hotel') ? '🏠' : '🏨' }} {{ $portalStayHeading }}</h2>
                 @foreach ($hotels as $hotel)
+                    @php
+                        $isApt = ($hotel['type'] ?? 'hotel') === 'apartment';
+                    @endphp
                     <div class="item-row">
-                        <div style="font-weight: 800; font-size: 0.96rem;">{{ $hotel['name'] ?? '-' }}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="padding: 2px 9px; border-radius: 999px; background: #fef3c7; color: #92400e; font-size: 0.72rem; font-weight: 800;">
+                                {{ $isApt ? __('ui.accommodation_type_apartment') : __('ui.accommodation_type_hotel') }}
+                            </span>
+                            <span style="font-weight: 800; font-size: 0.96rem;">{{ $hotel['name'] ?? '-' }}</span>
+                        </div>
+                        @if (! empty($hotel['address']))
+                            <div style="font-size: 0.84rem; color: #334155; margin-top: 4px;">
+                                📍 {{ $hotel['address'] }}
+                            </div>
+                        @endif
                         <div style="font-size: 0.84rem; color: #475569; margin-top: 4px; display: flex; gap: 14px; flex-wrap: wrap;">
                             @if (! empty($hotel['from']))
                                 <span>📅 {{ \Carbon\Carbon::parse($hotel['from'])->format('d/m/Y') }} – {{ ! empty($hotel['until']) ? \Carbon\Carbon::parse($hotel['until'])->format('d/m/Y') : '' }}</span>
@@ -353,6 +374,9 @@
                                 @if (! empty($p['name']))
                                     <span style="padding: 5px 12px; border-radius: 999px; background: #f1f5f9; border: 1px solid #cbd5e1; font-size: 0.84rem; font-weight: 600;">
                                         {{ $p['name'] }}
+                                        @if (! empty($p['passport_number']))
+                                            <span style="color: #64748b; font-weight: 500;" dir="ltr"> · 🛂 {{ $p['passport_number'] }}</span>
+                                        @endif
                                     </span>
                                 @endif
                             @endforeach
@@ -372,8 +396,14 @@
         <section class="card">
             <h2>📄 {{ __('ui.portal_documents_heading') }}</h2>
             <div class="doc-list">
-                <a href="{{ route('trip.portal.itinerary', ['token' => $trip->public_token]) }}" class="btn-gold">
-                    ⬇ {{ __('ui.download_itinerary') }} (PDF)
+                <a href="{{ route('trip.portal.itinerary', ['token' => $trip->public_token, 'lang' => 'he']) }}" class="{{ $locale === 'he' ? 'btn-gold' : 'btn-navy' }}">
+                    ⬇ {{ __('ui.download_itinerary') }} (עברית)
+                </a>
+                <a href="{{ route('trip.portal.itinerary', ['token' => $trip->public_token, 'lang' => 'ar']) }}" class="{{ $locale === 'ar' ? 'btn-gold' : 'btn-navy' }}">
+                    ⬇ {{ __('ui.download_itinerary') }} (العربية)
+                </a>
+                <a href="{{ route('trip.portal.itinerary', ['token' => $trip->public_token, 'lang' => 'en']) }}" class="{{ $locale === 'en' ? 'btn-gold' : 'btn-navy' }}">
+                    ⬇ {{ __('ui.download_itinerary') }} (English)
                 </a>
 
                 @foreach ($trip->attachments as $att)

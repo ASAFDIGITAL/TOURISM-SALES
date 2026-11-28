@@ -38,17 +38,21 @@ class TripPortalController extends Controller
         ]);
     }
 
-    public function downloadItinerary(string $token, TripDocumentationService $docs): Response
+    public function downloadItinerary(Request $request, string $token, TripDocumentationService $docs): Response
     {
         $trip = $this->findTripByToken($token);
-        App::setLocale($this->resolveLocale($trip));
+        $requestedLang = (string) $request->query('lang', '');
+        $lang = in_array($requestedLang, ['he', 'ar', 'en'], true)
+            ? $requestedLang
+            : $this->resolveLocale($trip);
+        App::setLocale($lang);
 
-        $pdf = $docs->getItineraryPdfContent($trip);
+        $pdf = $docs->getItineraryPdfContent($trip, $lang);
         $safeTitle = preg_replace('/[^\p{L}\p{N}_-]+/u', '_', $trip->title ?: 'Trip');
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="' . $safeTitle . '_Itinerary.pdf"',
+            'Content-Disposition' => 'attachment; filename="' . $safeTitle . '_Itinerary_' . $lang . '.pdf"',
         ]);
     }
 

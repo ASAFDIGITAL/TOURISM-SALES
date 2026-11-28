@@ -67,6 +67,16 @@ class PdfHelper
      */
     public static function fixRtl(?string $text): string
     {
+        return self::fixForPdf($text, true);
+    }
+
+    /**
+     * Prepare text for DomPDF in either RTL (he/ar) or LTR (en) documents.
+     * In LTR documents, embedded Hebrew/Arabic runs are still shaped and reversed
+     * so DomPDF renders "פריז, France" cleanly instead of backwards "זירפ, France".
+     */
+    public static function fixForPdf(?string $text, bool $isRtl = true): string
+    {
         if (! $text) {
             return '';
         }
@@ -83,8 +93,15 @@ class PdfHelper
         foreach ($parts as $part) {
             if (str_starts_with($part, '<') && str_ends_with($part, '>')) {
                 $result .= $part;
-            } else {
+            } elseif ($isRtl) {
                 $result .= self::reverseText($part);
+            } else {
+                // LTR document: reverse/shape only contiguous Hebrew/Arabic runs while keeping Latin order intact
+                $result .= preg_replace_callback(
+                    '/[\x{0590}-\x{05FF}\x{0600}-\x{06FF}]+(?:[\s\-\/]+[\x{0590}-\x{05FF}\x{0600}-\x{06FF}]+)*/u',
+                    fn (array $m): string => self::reverseText($m[0]),
+                    $part,
+                ) ?? $part;
             }
         }
 

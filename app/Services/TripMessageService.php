@@ -107,9 +107,9 @@ class TripMessageService
         $pdfFilename = null;
 
         if ($attachItinerary) {
-            $pdfContent = app(TripDocumentationService::class)->getItineraryPdfContent($trip);
+            $pdfContent = app(TripDocumentationService::class)->getItineraryPdfContent($trip, $locale);
             $safeTitle = preg_replace('/[^\p{L}\p{N}_-]+/u', '_', $trip->title ?: 'Trip');
-            $pdfFilename = "{$safeTitle}_Itinerary.pdf";
+            $pdfFilename = "{$safeTitle}_Itinerary_{$locale}.pdf";
         }
 
         try {

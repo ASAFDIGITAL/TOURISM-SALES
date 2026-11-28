@@ -204,20 +204,32 @@ class TripResource extends Resource
                         Forms\Components\Tabs\Tab::make(__('ui.itinerary'))
                             ->schema([
                                 Forms\Components\Repeater::make('hotels')
-                                    ->label(__('ui.hotels'))
+                                    ->label(__('ui.hotels_and_apartments'))
                                     ->schema([
+                                        Forms\Components\Select::make('type')
+                                            ->label(__('ui.accommodation_type'))
+                                            ->options([
+                                                Hotel::TYPE_HOTEL => __('ui.accommodation_type_hotel'),
+                                                Hotel::TYPE_APARTMENT => __('ui.accommodation_type_apartment'),
+                                            ])
+                                            ->default(Hotel::TYPE_HOTEL)
+                                            ->required()
+                                            ->live()
+                                            ->columnSpan(['default' => 6, 'md' => 2]),
                                         Forms\Components\Select::make('name')
-                                            ->label(__('ui.hotel_name'))
+                                            ->label(__('ui.accommodation_name'))
                                             ->searchable()
                                             ->options(fn (Get $get): array => Hotel::tripSelectOptions(
                                                 search: null,
                                                 preferredDestination: $get('../../destination'),
                                                 limit: 80,
+                                                preferredType: $get('type'),
                                             ))
                                             ->getSearchResultsUsing(fn (string $search, Get $get): array => Hotel::tripSelectOptions(
                                                 search: $search,
                                                 preferredDestination: $get('../../destination'),
                                                 limit: 40,
+                                                preferredType: $get('type'),
                                             ))
                                             ->getOptionLabelUsing(function ($value): ?string {
                                                 if (blank($value)) {
@@ -232,26 +244,40 @@ class TripResource extends Resource
                                             ->placeholder(__('ui.select_or_add_hotel_placeholder'))
                                             ->live()
                                             ->afterStateUpdated(function (?string $state, Get $get, Set $set): void {
-                                                if (blank($state) || filled($get('../../supplier_name'))) {
+                                                if (blank($state)) {
                                                     return;
                                                 }
 
-                                                $supplier = Hotel::query()
-                                                    ->where('name', $state)
-                                                    ->value('default_supplier');
+                                                $saved = Hotel::query()->where('name', $state)->first();
+                                                if (! $saved) {
+                                                    return;
+                                                }
 
-                                                if (filled($supplier)) {
-                                                    $set('../../supplier_name', $supplier);
+                                                if (filled($saved->type)) {
+                                                    $set('type', $saved->type);
+                                                }
+                                                if (blank($get('address')) && filled($saved->address)) {
+                                                    $set('address', $saved->address);
+                                                }
+                                                if (blank($get('../../supplier_name')) && filled($saved->default_supplier)) {
+                                                    $set('../../supplier_name', $saved->default_supplier);
                                                 }
                                             })
                                             ->createOptionForm([
                                                 Forms\Components\Grid::make(2)
                                                     ->schema([
+                                                        Forms\Components\Select::make('type')
+                                                            ->label(__('ui.accommodation_type'))
+                                                            ->options([
+                                                                Hotel::TYPE_HOTEL => __('ui.accommodation_type_hotel'),
+                                                                Hotel::TYPE_APARTMENT => __('ui.accommodation_type_apartment'),
+                                                            ])
+                                                            ->default(Hotel::TYPE_HOTEL)
+                                                            ->required(),
                                                         Forms\Components\TextInput::make('name')
-                                                            ->label(__('ui.hotel_name'))
+                                                            ->label(__('ui.accommodation_name'))
                                                             ->required()
-                                                            ->maxLength(255)
-                                                            ->columnSpanFull(),
+                                                            ->maxLength(255),
                                                         Forms\Components\Select::make('destination')
                                                             ->label(__('ui.destination'))
                                                             ->searchable()
@@ -276,6 +302,10 @@ class TripResource extends Resource
                                                                 4 => '★★★★ (4)',
                                                                 5 => '★★★★★ (5)',
                                                             ]),
+                                                        Forms\Components\TextInput::make('address')
+                                                            ->label(__('ui.address'))
+                                                            ->maxLength(255)
+                                                            ->columnSpanFull(),
                                                         Forms\Components\TextInput::make('phone')
                                                             ->label(__('ui.phone'))
                                                             ->tel()
@@ -292,6 +322,9 @@ class TripResource extends Resource
                                             ->createOptionUsing(function (array $data): string {
                                                 $name = trim((string) ($data['name'] ?? ''));
                                                 $tenantId = auth()->user()?->getActiveTenantId();
+                                                $type = in_array($data['type'] ?? null, [Hotel::TYPE_HOTEL, Hotel::TYPE_APARTMENT], true)
+                                                    ? $data['type']
+                                                    : Hotel::TYPE_HOTEL;
 
                                                 $hotel = Hotel::query()->firstOrCreate(
                                                     [
@@ -299,8 +332,10 @@ class TripResource extends Resource
                                                         'name' => $name,
                                                     ],
                                                     [
+                                                        'type' => $type,
                                                         'destination' => filled($data['destination'] ?? null) ? trim((string) $data['destination']) : null,
                                                         'stars' => filled($data['stars'] ?? null) ? (int) $data['stars'] : null,
+                                                        'address' => filled($data['address'] ?? null) ? trim((string) $data['address']) : null,
                                                         'phone' => filled($data['phone'] ?? null) ? trim((string) $data['phone']) : null,
                                                         'default_supplier' => filled($data['default_supplier'] ?? null) ? trim((string) $data['default_supplier']) : null,
                                                         'notes' => filled($data['notes'] ?? null) ? trim((string) $data['notes']) : null,
@@ -316,21 +351,26 @@ class TripResource extends Resource
                                                 ->tooltip(__('ui.quick_new_hotel'))
                                                 ->modalSubmitActionLabel(__('ui.save_hotel_to_list'))
                                             )
-                                            ->columnSpan(['default' => 5, 'md' => 2]),
+                                            ->columnSpan(['default' => 6, 'md' => 4]),
+                                        Forms\Components\TextInput::make('address')
+                                            ->label(__('ui.address'))
+                                            ->placeholder(__('ui.accommodation_address_placeholder'))
+                                            ->maxLength(255)
+                                            ->columnSpan(['default' => 6, 'md' => 6]),
                                         Forms\Components\DatePicker::make('from')
                                             ->label(__('ui.start_date'))
                                             ->native(false)
-                                            ->columnSpan(['default' => 5, 'md' => 1]),
+                                            ->columnSpan(['default' => 6, 'md' => 2]),
                                         Forms\Components\DatePicker::make('until')
                                             ->label(__('ui.end_date'))
                                             ->native(false)
-                                            ->columnSpan(['default' => 5, 'md' => 1]),
+                                            ->columnSpan(['default' => 6, 'md' => 2]),
                                         Forms\Components\TextInput::make('rooms')
                                             ->label(__('ui.rooms_count'))
                                             ->numeric()
-                                            ->columnSpan(['default' => 5, 'md' => 1]),
+                                            ->columnSpan(['default' => 6, 'md' => 2]),
                                     ])
-                                    ->columns(5)
+                                    ->columns(6)
                                     ->columnSpanFull(),
                                 
                                 Forms\Components\Repeater::make('flights')
@@ -428,9 +468,14 @@ class TripResource extends Resource
                                 Forms\Components\Repeater::make('passengers')
                                     ->label(__('ui.passengers'))
                                     ->schema([
-                                        Forms\Components\TextInput::make('name')->label(__('ui.passenger_name')),
+                                        Forms\Components\TextInput::make('name')
+                                            ->label(__('ui.passenger_name'))
+                                            ->maxLength(255),
+                                        Forms\Components\TextInput::make('passport_number')
+                                            ->label(__('ui.passport_number'))
+                                            ->maxLength(64),
                                     ])
-                                    ->columns(1)
+                                    ->columns(2)
                                     ->columnSpanFull(),
 
                                 Forms\Components\RichEditor::make('trip_summary')
@@ -629,16 +674,7 @@ class TripResource extends Resource
                     ->color('info')
                     ->url(fn (Trip $record): string => $record->getPortalUrl(), shouldOpenInNewTab: true),
                 \App\Filament\Agent\Actions\SendTripMessageAction::makeTableAction(),
-                Tables\Actions\Action::make('download_itinerary')
-                    ->label(__('ui.download_itinerary'))
-                    ->icon('heroicon-o-document-arrow-down')
-                    ->color('success')
-                    ->action(function (Trip $record, \App\Services\TripDocumentationService $service) {
-                        $content = $service->getItineraryPdfContent($record);
-                        return response()->streamDownload(function () use ($content) {
-                            echo $content;
-                        }, "{$record->title}_Itinerary.pdf");
-                    }),
+                \App\Filament\Agent\Actions\DownloadItineraryAction::makeTableAction(),
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])

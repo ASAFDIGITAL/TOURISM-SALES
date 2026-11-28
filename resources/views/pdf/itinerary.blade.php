@@ -1,5 +1,7 @@
 @php
-    $lang = $tenant->language ?: 'he';
+    $lang = in_array($overrideLang ?? null, ['he', 'ar', 'en'], true)
+        ? $overrideLang
+        : ($tenant->language ?: 'he');
     $isRtl = $lang !== 'en';
     $isLightHeader = ($tenant->pdf_header_theme ?? 'dark') === 'light';
     $useOpenSans = $lang !== 'ar'
@@ -17,7 +19,7 @@
             return '';
         }
 
-        return $isRtl ? \App\Helpers\PdfHelper::fixRtl($text) : $text;
+        return \App\Helpers\PdfHelper::fixForPdf($text, $isRtl);
     };
 
     $logoFullPath = null;
@@ -56,16 +58,55 @@
     $hotels = is_array($trip->hotels) ? array_values($trip->hotels) : [];
     $flights = is_array($trip->flights) ? array_values($trip->flights) : [];
 
-    // Look up star ratings from the agency's saved hotels catalog (if matching)
+    // Look up metadata (stars, type, address) from the agency's saved catalog if matching
     $hotelNames = collect($hotels)->pluck('name')->filter()->unique()->all();
-    $savedHotelStars = [];
+    $savedProperties = collect();
     if (count($hotelNames) > 0 && $tenant?->id) {
-        $savedHotelStars = \App\Models\Hotel::withoutGlobalScopes()
+        $savedProperties = \App\Models\Hotel::withoutGlobalScopes()
             ->where('tenant_id', $tenant->id)
             ->whereIn('name', $hotelNames)
-            ->pluck('stars', 'name')
-            ->all();
+            ->get()
+            ->keyBy('name');
     }
+
+    // Resolve each stay's type (hotel vs apartment), address, and stars
+    $resolvedStays = [];
+    $hasHotelStay = false;
+    $hasApartmentStay = false;
+    foreach ($hotels as $hotel) {
+        $name = trim((string) ($hotel['name'] ?? '-'));
+        $saved = $savedProperties->get($name);
+        $type = in_array($hotel['type'] ?? null, ['hotel', 'apartment'], true)
+            ? $hotel['type']
+            : ($saved?->type ?: 'hotel');
+
+        if ($type === 'apartment') {
+            $hasApartmentStay = true;
+        } else {
+            $hasHotelStay = true;
+        }
+
+        $address = filled($hotel['address'] ?? null)
+            ? trim((string) $hotel['address'])
+            : ($saved?->address ? trim((string) $saved->address) : null);
+
+        $resolvedStays[] = [
+            'name' => $name,
+            'type' => $type,
+            'address' => $address,
+            'stars' => $saved?->stars ?? null,
+            'from' => $hotel['from'] ?? null,
+            'until' => $hotel['until'] ?? null,
+            'rooms' => $hotel['rooms'] ?? null,
+        ];
+    }
+
+    // Dynamic section heading: Hotel Stay / Apartment Stay / Hotel & Apartment Stay
+    $stayHeadingKey = match (true) {
+        $hasApartmentStay && $hasHotelStay => 'ui.hotel_and_apartment_stay_heading',
+        $hasApartmentStay => 'ui.apartment_stay_heading',
+        default => 'ui.hotel_stay_heading',
+    };
 
     // Compact Vienna-style date range (e.g. 14-17.05.2027 or 28.05-03.06.2027)
     $dateRange = '-';
@@ -166,9 +207,12 @@
 
     $iconPlane = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#976919" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m21 3-6 7 2 9-2 2-4-8-4 4 .3 3-1.4 1.4L4 17l-3-2 1.5-1.4 3 .3 4-4-8-4 2-2 9 2 6-5c2-1 3 0 2.5 2z"/></svg>');
     $iconHotel = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#976919" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V4h14v17M10 21v-5h4v5M8 8h2m4 0h2m-8 4h2m4 0h2"/></svg>');
+    $iconApartment = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#976919" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>');
     $iconUsers = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#976919" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>');
     $iconPayment = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#976919" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>');
     $iconBrandMark = $svgUri('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#bf841d" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L15 22l-4-9-9-4 20-7zM11 13l7-7"/></svg>');
+
+    $stayIcon = ($hasApartmentStay && ! $hasHotelStay) ? $iconApartment : $iconHotel;
 
     // Subtle luxury architectural compass/horizon graphic for the Hero opposite side
     $heroAccentStroke = $isLightHeader ? '#d4b06a' : '#f6cc84';
@@ -406,7 +450,7 @@
             margin-top: 1px;
         }
 
-        /* Warm Sand Hotel Callout Block (Vienna Signature) */
+        /* Warm Sand Hotel / Apartment Callout Block */
         .hotel-card {
             background: #f7f6f2;
             padding: 8px 13px;
@@ -419,14 +463,31 @@
             @endif
             text-align: {{ $align }};
         }
+        .stay-type-badge {
+            display: inline-block;
+            background: #fbf1dc;
+            color: #976919;
+            font-size: 9px;
+            font-weight: bold;
+            padding: 1px 7px;
+            border-radius: 8px;
+            vertical-align: middle;
+        }
         .hotel-name {
             font-size: 13.5px;
             font-weight: bold;
             color: #192b3c;
+            vertical-align: middle;
         }
         .hotel-stars {
             color: #bf841d;
             font-size: 11px;
+            vertical-align: middle;
+        }
+        .hotel-address {
+            font-size: 10.5px;
+            color: #334155;
+            margin-top: 3px;
         }
         .hotel-meta {
             font-size: 10.5px;
@@ -434,7 +495,7 @@
             margin-top: 2px;
         }
 
-        /* Passengers & Editorial Summary Rows */
+        /* Passengers Table */
         .pax-list {
             width: 100%;
             border-collapse: collapse;
@@ -454,22 +515,10 @@
             font-size: 11px;
             width: 26px;
         }
-        .summary-editorial {
-            padding: 4px 2px 2px 2px;
-            font-size: 11px;
-            line-height: 1.55;
-            color: #2b3d4f;
-            text-align: {{ $align }};
-        }
-        .summary-editorial p {
-            margin: 0 0 5px 0;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #e2e7e8;
-        }
-        .summary-editorial p:last-child {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: none;
+        .pax-passport {
+            font-size: 10px;
+            color: #586978;
+            white-space: nowrap;
         }
 
         /* Compact Editorial Payment Summary */
@@ -562,7 +611,7 @@
                         </div>
                     @endif
                     <div>
-                        <span class="agency-title">{{ $tenant->name }}</span>
+                        <span class="agency-title">{{ $f($tenant->name) }}</span>
                         <span class="agency-slash"> / {{ $t('ui.trip_summary_label') }}</span>
                     </div>
                 </td>
@@ -594,9 +643,9 @@
                 @else
                     <td style="width: 64%; text-align: left;">
                         <div class="hero-kicker">{{ $t('ui.itinerary') }}</div>
-                        <div class="hero-title">{{ $trip->title }}</div>
+                        <div class="hero-title">{{ $f($trip->title) }}</div>
                         @if(filled($trip->destination))
-                            <div class="hero-subtitle">{{ $trip->destination }}</div>
+                            <div class="hero-subtitle">{{ $f($trip->destination) }}</div>
                         @endif
                     </td>
                     <td style="width: 36%; text-align: right;">
@@ -666,7 +715,7 @@
                         $airlineDisplay = trim((string) ($flight['airline'] ?? ''));
                         $flightNoDisplay = trim((string) ($flight['flight_number'] ?? ''));
                         $routeDisplay = ($fromCode || $toCode)
-                            ? trim($fromCode . ' → ' . $toCode, ' →')
+                            ? trim($f($fromCode) . ' → ' . $f($toCode), ' →')
                             : ($airlineDisplay !== '' ? $f($airlineDisplay) : '-');
                     @endphp
                     <tr>
@@ -691,7 +740,7 @@
                             <td>
                                 <span class="nowrap" style="font-weight: bold;">{{ $flightNoDisplay !== '' ? $flightNoDisplay : '-' }}</span>
                                 @if($airlineDisplay !== '' && ($fromCode || $toCode))
-                                    <span class="flight-sub">{{ $airlineDisplay }}</span>
+                                    <span class="flight-sub">{{ $f($airlineDisplay) }}</span>
                                 @endif
                             </td>
                             <td class="nowrap">
@@ -707,36 +756,40 @@
         </table>
     @endif
 
-    {{-- Hotels Section --}}
-    @if(count($hotels) > 0)
+    {{-- Hotels / Apartments Section --}}
+    @if(count($resolvedStays) > 0)
         <table class="section-head">
             <tr>
                 @if($isRtl)
                     <td class="section-rule-cell"><div class="section-rule"></div></td>
-                    <td class="section-title-cell"><div class="section-title">{{ $f($t('ui.hotel_stay_heading')) }}</div></td>
-                    <td class="section-icon-cell"><div class="section-icon-circle"><img src="{{ $iconHotel }}" alt=""></div></td>
+                    <td class="section-title-cell"><div class="section-title">{{ $f($t($stayHeadingKey)) }}</div></td>
+                    <td class="section-icon-cell"><div class="section-icon-circle"><img src="{{ $stayIcon }}" alt=""></div></td>
                 @else
-                    <td class="section-icon-cell"><div class="section-icon-circle"><img src="{{ $iconHotel }}" alt=""></div></td>
-                    <td class="section-title-cell"><div class="section-title">{{ $t('ui.hotel_stay_heading') }}</div></td>
+                    <td class="section-icon-cell"><div class="section-icon-circle"><img src="{{ $stayIcon }}" alt=""></div></td>
+                    <td class="section-title-cell"><div class="section-title">{{ $t($stayHeadingKey) }}</div></td>
                     <td class="section-rule-cell"><div class="section-rule"></div></td>
                 @endif
             </tr>
         </table>
 
-        @foreach($hotels as $hotel)
+        @foreach($resolvedStays as $stay)
             @php
-                $hotelName = trim((string) ($hotel['name'] ?? '-'));
-                $stars = $savedHotelStars[$hotelName] ?? null;
-                $checkIn = !empty($hotel['from']) ? \Carbon\Carbon::parse($hotel['from'])->format('d.m.Y') : null;
-                $checkOut = !empty($hotel['until']) ? \Carbon\Carbon::parse($hotel['until'])->format('d.m.Y') : null;
+                $stayName = $stay['name'];
+                $stayTypeLabel = $stay['type'] === 'apartment'
+                    ? $t('ui.accommodation_type_apartment')
+                    : $t('ui.accommodation_type_hotel');
+                $stars = $stay['stars'];
+                $stayAddress = $stay['address'];
+                $checkIn = !empty($stay['from']) ? \Carbon\Carbon::parse($stay['from'])->format('d.m.Y') : null;
+                $checkOut = !empty($stay['until']) ? \Carbon\Carbon::parse($stay['until'])->format('d.m.Y') : null;
                 $hNights = null;
-                if (!empty($hotel['from']) && !empty($hotel['until'])) {
-                    $d = (int) \Carbon\Carbon::parse($hotel['from'])->diffInDays(\Carbon\Carbon::parse($hotel['until']), false);
+                if (!empty($stay['from']) && !empty($stay['until'])) {
+                    $d = (int) \Carbon\Carbon::parse($stay['from'])->diffInDays(\Carbon\Carbon::parse($stay['until']), false);
                     if ($d > 0) {
                         $hNights = $d;
                     }
                 }
-                $rooms = !empty($hotel['rooms']) ? $hotel['rooms'] : null;
+                $rooms = !empty($stay['rooms']) ? $stay['rooms'] : null;
 
                 $hParts = [];
                 if ($checkIn) {
@@ -761,14 +814,25 @@
                         @if($stars)
                             <span class="hotel-stars">{{ str_repeat('★', (int) $stars) }}</span>&nbsp;
                         @endif
-                        <span class="hotel-name">{{ $f($hotelName) }}</span>
+                        <span class="hotel-name">{{ $f($stayName) }}</span>
+                        &nbsp;<span class="stay-type-badge">{{ $f($stayTypeLabel) }}</span>
                     @else
-                        <span class="hotel-name">{{ $hotelName }}</span>
+                        <span class="stay-type-badge">{{ $stayTypeLabel }}</span>&nbsp;
+                        <span class="hotel-name">{{ $f($stayName) }}</span>
                         @if($stars)
                             &nbsp;<span class="hotel-stars">{{ str_repeat('★', (int) $stars) }}</span>
                         @endif
                     @endif
                 </div>
+                @if(filled($stayAddress))
+                    <div class="hotel-address">
+                        @if($isRtl)
+                            {{ $f($stayAddress) }} :{{ $f($t('ui.address')) }}
+                        @else
+                            <strong>{{ $t('ui.address') }}:</strong> {{ $f($stayAddress) }}
+                        @endif
+                    </div>
+                @endif
                 @if(count($hParts) > 0)
                     <div class="hotel-meta">{{ implode('   ·   ', $hParts) }}</div>
                 @endif
@@ -795,13 +859,26 @@
         <table class="pax-list">
             <tbody>
                 @foreach($passengers as $idx => $passenger)
+                    @php
+                        $paxPassport = trim((string) ($passenger['passport_number'] ?? ''));
+                    @endphp
                     <tr>
                         @if($isRtl)
+                            <td class="pax-passport" style="text-align: left;">
+                                @if($paxPassport !== '')
+                                    {{ $paxPassport }} :{{ $f($t('ui.passport_number')) }}
+                                @endif
+                            </td>
                             <td>{{ $f($passenger['name'] ?? '') }}</td>
                             <td class="pax-idx" style="text-align: right;">{{ sprintf('%02d', $idx + 1) }}</td>
                         @else
                             <td class="pax-idx" style="text-align: left;">{{ sprintf('%02d', $idx + 1) }}</td>
-                            <td>{{ $passenger['name'] ?? '' }}</td>
+                            <td>{{ $f($passenger['name'] ?? '') }}</td>
+                            <td class="pax-passport" style="text-align: right;">
+                                @if($paxPassport !== '')
+                                    {{ $t('ui.passport_number') }}: {{ $paxPassport }}
+                                @endif
+                            </td>
                         @endif
                     </tr>
                 @endforeach
@@ -855,7 +932,7 @@
             @else
                 <td style="text-align: left; width: 55%;">
                     @if($tenant->name)
-                        {{ $tenant->name }} &nbsp;·&nbsp;
+                        {{ $f($tenant->name) }} &nbsp;·&nbsp;
                     @endif
                     {{ $issueDateLabel }} {{ now()->format('d.m.Y') }}
                 </td>

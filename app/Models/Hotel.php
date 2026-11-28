@@ -11,9 +11,13 @@ class Hotel extends Model
 {
     use HasFactory, BelongsToTenant;
 
+    public const TYPE_HOTEL = 'hotel';
+    public const TYPE_APARTMENT = 'apartment';
+
     protected $fillable = [
         'tenant_id',
         'name',
+        'type',
         'destination',
         'stars',
         'phone',
@@ -25,6 +29,7 @@ class Hotel extends Model
     ];
 
     protected $attributes = [
+        'type' => self::TYPE_HOTEL,
         'is_active' => true,
     ];
 
@@ -38,9 +43,18 @@ class Hotel extends Model
         return $query->where('is_active', true);
     }
 
+    public function isApartment(): bool
+    {
+        return $this->type === self::TYPE_APARTMENT;
+    }
+
     public function getDisplayLabelAttribute(): string
     {
-        $parts = [$this->name];
+        $typeTag = $this->isApartment()
+            ? '[' . __('ui.accommodation_type_apartment') . '] '
+            : '';
+
+        $parts = [$typeTag . $this->name];
 
         if (filled($this->destination)) {
             $parts[] = $this->destination;
@@ -56,12 +70,16 @@ class Hotel extends Model
     }
 
     /**
-     * Build searchable option array [hotel_name => display_label] for Trip hotel pickers.
+     * Build searchable option array [hotel_name => display_label] for Trip accommodation pickers.
      *
      * @return array<string, string>
      */
-    public static function tripSelectOptions(?string $search = null, ?string $preferredDestination = null, int $limit = 60): array
-    {
+    public static function tripSelectOptions(
+        ?string $search = null,
+        ?string $preferredDestination = null,
+        int $limit = 60,
+        ?string $preferredType = null,
+    ): array {
         $query = static::query()
             ->active()
             ->when(filled($search), function (Builder $q) use ($search): void {
@@ -69,6 +87,7 @@ class Hotel extends Model
                 $q->where(function (Builder $inner) use ($term): void {
                     $inner->where('name', 'like', "%{$term}%")
                         ->orWhere('destination', 'like', "%{$term}%")
+                        ->orWhere('address', 'like', "%{$term}%")
                         ->orWhere('default_supplier', 'like', "%{$term}%");
                 });
             });
@@ -78,16 +97,23 @@ class Hotel extends Model
             ->limit($limit)
             ->get();
 
-        if (filled($preferredDestination)) {
-            $needle = mb_strtolower(trim((string) $preferredDestination));
-            $hotels = $hotels->sortByDesc(function (Hotel $hotel) use ($needle): int {
-                if (blank($hotel->destination)) {
-                    return 0;
+        if (filled($preferredDestination) || filled($preferredType)) {
+            $needle = filled($preferredDestination) ? mb_strtolower(trim((string) $preferredDestination)) : null;
+            $hotels = $hotels->sortByDesc(function (Hotel $hotel) use ($needle, $preferredType): int {
+                $score = 0;
+
+                if (filled($preferredType) && ($hotel->type ?: self::TYPE_HOTEL) === $preferredType) {
+                    $score += 2;
                 }
 
-                $dest = mb_strtolower($hotel->destination);
+                if ($needle !== null && filled($hotel->destination)) {
+                    $dest = mb_strtolower($hotel->destination);
+                    if ($dest === $needle || str_contains($dest, $needle) || str_contains($needle, $dest)) {
+                        $score += 1;
+                    }
+                }
 
-                return ($dest === $needle || str_contains($dest, $needle) || str_contains($needle, $dest)) ? 1 : 0;
+                return $score;
             });
         }
 

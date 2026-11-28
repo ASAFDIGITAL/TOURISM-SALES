@@ -23,17 +23,17 @@ class HotelResource extends Resource
 
     public static function getModelLabel(): string
     {
-        return __('ui.hotel');
+        return __('ui.hotel_or_apartment');
     }
 
     public static function getPluralModelLabel(): string
     {
-        return __('ui.hotels');
+        return __('ui.hotels_and_apartments');
     }
 
     public static function getNavigationLabel(): string
     {
-        return __('ui.hotels');
+        return __('ui.hotels_and_apartments');
     }
 
     public static function canDelete(Model $record): bool
@@ -54,8 +54,16 @@ class HotelResource extends Resource
                     ->schema([
                         Forms\Components\Grid::make(2)
                             ->schema([
+                                Forms\Components\Select::make('type')
+                                    ->label(__('ui.accommodation_type'))
+                                    ->options([
+                                        Hotel::TYPE_HOTEL => __('ui.accommodation_type_hotel'),
+                                        Hotel::TYPE_APARTMENT => __('ui.accommodation_type_apartment'),
+                                    ])
+                                    ->default(Hotel::TYPE_HOTEL)
+                                    ->required(),
                                 Forms\Components\TextInput::make('name')
-                                    ->label(__('ui.hotel_name'))
+                                    ->label(__('ui.accommodation_name'))
                                     ->required()
                                     ->maxLength(255),
                                 Forms\Components\Select::make('destination')
@@ -94,11 +102,10 @@ class HotelResource extends Resource
                                     ->label(__('ui.email'))
                                     ->email()
                                     ->maxLength(255),
+                                Forms\Components\TextInput::make('address')
+                                    ->label(__('ui.address'))
+                                    ->maxLength(255),
                             ]),
-                        Forms\Components\TextInput::make('address')
-                            ->label(__('ui.address'))
-                            ->maxLength(255)
-                            ->columnSpanFull(),
                         Forms\Components\Textarea::make('notes')
                             ->label(__('ui.notes'))
                             ->placeholder(__('ui.hotel_notes_placeholder'))
@@ -116,8 +123,16 @@ class HotelResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('type')
+                    ->label(__('ui.accommodation_type'))
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => $state === Hotel::TYPE_APARTMENT
+                        ? __('ui.accommodation_type_apartment')
+                        : __('ui.accommodation_type_hotel'))
+                    ->color(fn (?string $state): string => $state === Hotel::TYPE_APARTMENT ? 'primary' : 'info')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
-                    ->label(__('ui.hotel_name'))
+                    ->label(__('ui.accommodation_name'))
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
@@ -126,8 +141,14 @@ class HotelResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->badge()
-                    ->color('info')
+                    ->color('gray')
                     ->placeholder('-'),
+                Tables\Columns\TextColumn::make('address')
+                    ->label(__('ui.address'))
+                    ->searchable()
+                    ->limit(32)
+                    ->placeholder('-')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('stars')
                     ->label(__('ui.hotel_stars'))
                     ->formatStateUsing(fn ($state): string => $state ? str_repeat('★', (int) $state) . ' (' . $state . ')' : '-')
@@ -143,7 +164,7 @@ class HotelResource extends Resource
                     ->label(__('ui.default_supplier'))
                     ->searchable()
                     ->placeholder('-')
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 Tables\Columns\ToggleColumn::make('is_active')
                     ->label(__('ui.active')),
                 Tables\Columns\TextColumn::make('created_at')
@@ -153,6 +174,12 @@ class HotelResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('type')
+                    ->label(__('ui.accommodation_type'))
+                    ->options([
+                        Hotel::TYPE_HOTEL => __('ui.accommodation_type_hotel'),
+                        Hotel::TYPE_APARTMENT => __('ui.accommodation_type_apartment'),
+                    ]),
                 Tables\Filters\SelectFilter::make('stars')
                     ->label(__('ui.hotel_stars'))
                     ->options([
